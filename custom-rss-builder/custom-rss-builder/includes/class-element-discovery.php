@@ -80,7 +80,7 @@ class Custom_RSS_Builder_Element_Discovery {
 			}
 		);
 
-		$groups = array_slice( $groups, 0, self::MAX_GROUPS );
+		$groups = $this->limit_groups_for_output( $groups );
 		$groups = $this->mark_primary_link_group( $groups );
 
 		return array(
@@ -88,6 +88,40 @@ class Custom_RSS_Builder_Element_Discovery {
 			'scope_label'    => '' !== trim( $scope_selector ) ? trim( $scope_selector ) : __( 'ページ全体', 'custom-rss-builder' ),
 			'groups'         => $groups,
 			'field_guide'    => $this->build_field_guide( $groups ),
+		);
+	}
+
+	/**
+	 * Feed43 のスロット提案に使うリンク・画像・テキスト候補をブロック候補で押し出さない。
+	 *
+	 * @param array<int, array<string, mixed>> $groups Discovery groups.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function limit_groups_for_output( array $groups ) {
+		if ( count( $groups ) <= self::MAX_GROUPS ) {
+			return $groups;
+		}
+
+		$block_groups = array();
+		$slot_groups  = array();
+		foreach ( $groups as $group ) {
+			if ( 'block' === (string) ( $group['kind'] ?? '' ) ) {
+				$block_groups[] = $group;
+				continue;
+			}
+			$slot_groups[] = $group;
+		}
+
+		$block_limit = min( 15, count( $block_groups ) );
+		$slot_limit  = self::MAX_GROUPS - $block_limit;
+		if ( count( $slot_groups ) < $slot_limit ) {
+			$block_limit = min( count( $block_groups ), self::MAX_GROUPS - count( $slot_groups ) );
+			$slot_limit  = self::MAX_GROUPS - $block_limit;
+		}
+
+		return array_merge(
+			array_slice( $block_groups, 0, $block_limit ),
+			array_slice( $slot_groups, 0, $slot_limit )
 		);
 	}
 
