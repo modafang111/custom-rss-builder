@@ -1,0 +1,20 @@
+# 秘密情報（絶対にコミットしない）
+deploy.local.json
+*.local.json
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / エディタ
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ビルド成果物（必要なら zip も除外）
+*.zip
