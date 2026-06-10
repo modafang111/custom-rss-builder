@@ -139,6 +139,25 @@ def main() -> int:
         fail("minute intervals should not appear in import settings UI")
     else:
         ok("import settings UI has no minute intervals")
+    if "CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS" not in lic:
+        fail("missing CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS")
+    elif "24" not in lic.split("CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS", 1)[1][:20]:
+        fail("free import min hours should be 24")
+    else:
+        ok("free plan import min hours = 24")
+    if "crb_license_import_schedule_min_hours" not in lic:
+        fail("missing crb_license_import_schedule_min_hours()")
+    else:
+        ok("plan-aware import schedule min helper present")
+    sched = read("includes/functions-import-schedule.php")
+    if "crb_import_schedule_effective_hours" not in sched:
+        fail("missing crb_import_schedule_effective_hours()")
+    else:
+        ok("effective import schedule hours helper present")
+    if "schedule_plan_min" not in imp_set:
+        fail("feed-import-settings should use plan-specific schedule min")
+    else:
+        ok("import settings UI uses plan-specific min")
 
     print()
     if FAIL:

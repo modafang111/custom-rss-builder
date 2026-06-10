@@ -11,11 +11,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 $crb_import_disabled = ! empty( $crb_import_disabled );
 
 $schedule_hours      = 0;
+$schedule_plan_min   = function_exists( 'crb_import_schedule_min_hours_for_plan' )
+	? (int) crb_import_schedule_min_hours_for_plan()
+	: (int) ( defined( 'CRB_IMPORT_SCHEDULE_MIN_HOURS' ) ? CRB_IMPORT_SCHEDULE_MIN_HOURS : 1 );
+$schedule_input_min  = 0;
+$crb_is_free_usable  = false;
 
-if ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
-
+if ( function_exists( 'crb_import_schedule_effective_hours_from_slug' ) ) {
+	$schedule_hours = crb_import_schedule_effective_hours_from_slug( $values['import']['schedule'] ?? 'off' );
+} elseif ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
 	$schedule_hours = crb_import_schedule_hours_from_slug( $values['import']['schedule'] ?? 'off' );
+}
 
+$schedule_input_min = $schedule_hours > 0 ? $schedule_plan_min : 0;
+
+if ( isset( $crb_license_state ) && is_array( $crb_license_state ) ) {
+	$crb_is_free_usable = ! empty( $crb_license_state['usable'] ) && 'free' === ( $crb_license_state['plan'] ?? '' );
 }
 
 ?>
@@ -63,7 +74,7 @@ if ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
 
 					class="small-text"
 
-					min="0"
+					min="<?php echo esc_attr( (string) $schedule_input_min ); ?>"
 
 					max="<?php echo esc_attr( (string) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 ) ); ?>"
 
@@ -87,9 +98,9 @@ if ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
 
 					/* translators: 1: min hours, 2: max hours */
 
-					esc_html__( '数字を入力（%1$d〜%2$d）。0 は自動オフ。1 以上で保存時に WordPress が自分へアクセスして取り込みを開始し、以降も間隔ごとに自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
+					esc_html__( '数字を入力（%1$d〜%2$d）。0 は自動オフ。%1$d 以上で保存時に WordPress が自分へアクセスして取り込みを開始し、以降も間隔ごとに自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
 
-					(int) ( defined( 'CRB_IMPORT_SCHEDULE_MIN_HOURS' ) ? CRB_IMPORT_SCHEDULE_MIN_HOURS : 1 ),
+					(int) $schedule_plan_min,
 
 					(int) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 )
 
@@ -98,6 +109,18 @@ if ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
 				?>
 
 			</p>
+
+			<?php if ( $crb_is_free_usable ) : ?>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: %d: minimum hours on free plan */
+					esc_html__( '無料プランでは自動取り込みは最短 %d 時間に1回です（保存済みの短い間隔も実行時はこの間隔に揃います）。', 'custom-rss-builder' ),
+					(int) $schedule_plan_min
+				);
+				?>
+			</p>
+			<?php endif; ?>
 
 		</td>
 

@@ -13,6 +13,8 @@ define( 'CRB_LICENSE_OPTION_KEY', 'crb_license_settings' );
 define( 'CRB_LICENSE_FREE_FEED_LIMIT', 1 );
 /** 無料プランで使えるスロット数（{%1%}〜{%n%}。タイトル・リンク含む） */
 define( 'CRB_LICENSE_FREE_SLOT_LIMIT', 3 );
+/** 無料プランの自動取り込み最短間隔（時間） */
+define( 'CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS', 24 );
 
 /**
  * @return array<string, mixed>
@@ -1128,7 +1130,19 @@ function crb_license_get_state() {
 	$settings = crb_license_get_settings();
 	$key      = trim( (string) ( $settings['license_key'] ?? '' ) );
 
-	if ( '' === $key || empty( $settings['usable'] ) ) {
+	if ( '' === $key ) {
+		return array(
+			'plan'        => 'free',
+			'status'      => 'inactive',
+			'usable'      => false,
+			'message'     => crb_license_ui_is_client_screen()
+				? __( 'ライセンスが有効ではありません。「ライセンス」画面でキーを入力し、有効化してください。', 'custom-rss-builder' )
+				: __( 'ライセンスを有効化できません。ライセンス画面で Pro キーを入力するか、ライセンスサーバーで無料登録してください。', 'custom-rss-builder' ),
+			'license_key' => '',
+		);
+	}
+
+	if ( empty( $settings['usable'] ) ) {
 		return array(
 			'plan'        => sanitize_key( (string) ( $settings['plan'] ?? 'free' ) ),
 			'status'      => sanitize_key( (string) ( $settings['status'] ?? 'inactive' ) ),
@@ -1236,6 +1250,30 @@ function crb_license_denied_message( $feature ) {
 }
 
 /**
+ * 現在プランで許可される自動取り込みの最短間隔（時間）。0 はオフ専用。
+ *
+ * @return int
+ */
+function crb_license_import_schedule_min_hours() {
+	$global_min = defined( 'CRB_IMPORT_SCHEDULE_MIN_HOURS' ) ? (int) CRB_IMPORT_SCHEDULE_MIN_HOURS : 1;
+
+	if ( ! function_exists( 'crb_license_get_state' ) ) {
+		return $global_min;
+	}
+
+	$state = crb_license_get_state();
+	if ( empty( $state['usable'] ) ) {
+		return $global_min;
+	}
+
+	if ( 'free' === sanitize_key( (string) ( $state['plan'] ?? '' ) ) ) {
+		return (int) CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS;
+	}
+
+	return $global_min;
+}
+
+/**
  * Pro プランのスロット数。
  *
  * @return int
@@ -1257,6 +1295,23 @@ function crb_license_plan_label( $plan ) {
 		default:
 			return '—';
 	}
+}
+
+/**
+ * ライセンス画面のプラン表示（未登録キーは「未登録」）。
+ *
+ * @param array{plan?:string,usable?:bool,license_key?:string} $state State from crb_license_get_state().
+ * @return string
+ */
+function crb_license_plan_label_for_state( array $state ) {
+	if ( function_exists( 'crb_license_ui_is_client_screen' ) && crb_license_ui_is_client_screen() ) {
+		$key = trim( (string) ( $state['license_key'] ?? '' ) );
+		if ( '' === $key ) {
+			return __( '未登録', 'custom-rss-builder' );
+		}
+	}
+
+	return crb_license_plan_label( (string) ( $state['plan'] ?? 'free' ) );
 }
 
 /**
@@ -1299,6 +1354,24 @@ function crb_license_status_label( $status ) {
 		default:
 			return '' !== (string) $status ? (string) $status : '—';
 	}
+}
+
+/**
+ * Pro 月額（表示用・税込）。
+ *
+ * @return string
+ */
+function crb_pro_monthly_price_label() {
+	return __( '月額 3,300 円（税込）', 'custom-rss-builder' );
+}
+
+/**
+ * 初期設定代行（2 回目以降・表示用・税込）。
+ *
+ * @return string
+ */
+function crb_pro_setup_repeat_price_label() {
+	return __( '1,100 円（税込）／回', 'custom-rss-builder' );
 }
 
 /**
@@ -1357,7 +1430,11 @@ function crb_license_plan_comparison_rows() {
 		array(
 			'label' => __( '初期設定代行', 'custom-rss-builder' ),
 			'free'  => '—',
-			'pro'   => __( '初回 1 フィード無料（2 回目以降 1,000 円税別／回）', 'custom-rss-builder' ),
+			'pro'   => sprintf(
+				/* translators: %s: price per extra setup e.g. 1,100 円（税込）／回 */
+				__( '初回 1 フィード無料（2 回目以降 %s）', 'custom-rss-builder' ),
+				crb_pro_setup_repeat_price_label()
+			),
 		),
 	);
 }

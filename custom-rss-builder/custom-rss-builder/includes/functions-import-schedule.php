@@ -16,6 +16,48 @@ define( 'CRB_IMPORT_SCHEDULE_MIN_HOURS', 1 );
 define( 'CRB_IMPORT_SCHEDULE_MAX_HOURS', 168 );
 
 /**
+ * 現在プランで許可される最短間隔（時間）。
+ *
+ * @return int
+ */
+function crb_import_schedule_min_hours_for_plan() {
+	if ( function_exists( 'crb_license_import_schedule_min_hours' ) ) {
+		return (int) crb_license_import_schedule_min_hours();
+	}
+	return (int) CRB_IMPORT_SCHEDULE_MIN_HOURS;
+}
+
+/**
+ * 保存値・実行時に適用する有効間隔（0=オフ。1〜23 は無料などで繰り上げ）。
+ *
+ * @param int $hours Raw hours.
+ * @return int
+ */
+function crb_import_schedule_effective_hours( $hours ) {
+	$hours = crb_import_schedule_sanitize_hours( $hours );
+	if ( $hours <= 0 ) {
+		return 0;
+	}
+
+	$min = crb_import_schedule_min_hours_for_plan();
+	if ( $hours < $min ) {
+		return $min;
+	}
+
+	return $hours;
+}
+
+/**
+ * @param string $schedule Stored schedule slug.
+ * @return int Effective hours (0 = off).
+ */
+function crb_import_schedule_effective_hours_from_slug( $schedule ) {
+	return crb_import_schedule_effective_hours(
+		crb_import_schedule_hours_from_slug( $schedule )
+	);
+}
+
+/**
  * @param string $schedule Raw or legacy schedule slug.
  * @return string Normalized slug.
  */
@@ -58,8 +100,9 @@ function crb_import_schedule_sanitize_hours( $hours ) {
  * @return string Schedule slug for storage.
  */
 function crb_import_schedule_slug_from_hours( $hours ) {
-	$hours = crb_import_schedule_sanitize_hours( $hours );
-	if ( $hours < CRB_IMPORT_SCHEDULE_MIN_HOURS ) {
+	$hours = crb_import_schedule_effective_hours( $hours );
+	$min   = crb_import_schedule_min_hours_for_plan();
+	if ( $hours < $min ) {
 		return 'off';
 	}
 	return 'crb_every_' . $hours . '_hours';
@@ -90,8 +133,9 @@ function crb_sanitize_import_schedule( $raw ) {
 		return 'off';
 	}
 	if ( preg_match( '/^crb_every_(\d+)_hours$/', $raw, $matches ) ) {
-		$hours = crb_import_schedule_sanitize_hours( (int) $matches[1] );
-		if ( $hours < CRB_IMPORT_SCHEDULE_MIN_HOURS ) {
+		$hours = crb_import_schedule_effective_hours( (int) $matches[1] );
+		$min   = crb_import_schedule_min_hours_for_plan();
+		if ( $hours < $min ) {
 			return 'off';
 		}
 		return 'crb_every_' . $hours . '_hours';
@@ -115,8 +159,9 @@ function crb_import_schedule_recurrence( $schedule ) {
  * @return string
  */
 function crb_import_schedule_label( $schedule ) {
-	$hours = crb_import_schedule_hours_from_slug( $schedule );
-	if ( $hours < CRB_IMPORT_SCHEDULE_MIN_HOURS ) {
+	$hours = crb_import_schedule_effective_hours_from_slug( $schedule );
+	$min   = crb_import_schedule_min_hours_for_plan();
+	if ( $hours < $min ) {
 		return __( 'オフ（手動のみ）', 'custom-rss-builder' );
 	}
 	return sprintf(
@@ -134,7 +179,8 @@ function crb_import_schedule_is_active( $import ) {
 	if ( empty( $import['enabled'] ) ) {
 		return false;
 	}
-	return crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) ) >= CRB_IMPORT_SCHEDULE_MIN_HOURS;
+	$hours = crb_import_schedule_effective_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
+	return $hours >= crb_import_schedule_min_hours_for_plan();
 }
 
 /**
