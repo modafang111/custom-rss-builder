@@ -50,7 +50,9 @@ $max_slots              = function_exists( 'crb_license_get_record_slot_count' )
 $slot_range_label       = function_exists( 'crb_license_format_slot_range_text' )
 	? crb_license_format_slot_range_text( (int) $max_slots )
 	: (string) $max_slots;
-$plan_label             = function_exists( 'crb_license_plan_label' ) ? crb_license_plan_label( $state['plan'] ) : $state['plan'];
+$plan_label             = function_exists( 'crb_license_plan_label_for_state' )
+	? crb_license_plan_label_for_state( $state )
+	: ( function_exists( 'crb_license_plan_label' ) ? crb_license_plan_label( $state['plan'] ) : $state['plan'] );
 $comparison_rows        = function_exists( 'crb_license_plan_comparison_rows' ) ? crb_license_plan_comparison_rows() : array();
 $status_label           = function_exists( 'crb_license_status_label_for_display' )
 	? crb_license_status_label_for_display( $state )
@@ -60,9 +62,14 @@ $registration_portal_url     = function_exists( 'crb_license_registration_portal
 $show_client_registration    = $is_client_screen && ! $state['usable'] && '' !== $registration_portal_url;
 $crb_install_manual_url      = function_exists( 'crb_install_manual_page_url' ) ? crb_install_manual_page_url() : '';
 $crb_feed_pack_manual_url     = function_exists( 'crb_feed_pack_manual_page_url' ) ? crb_feed_pack_manual_page_url() : '';
-$feed_limit_label     = ( $state['usable'] && 'pro' === $state['plan'] )
-	? __( '無制限', 'custom-rss-builder' )
-	: (string) CRB_LICENSE_FREE_FEED_LIMIT;
+$feed_limit_label = (string) CRB_LICENSE_FREE_FEED_LIMIT;
+if ( $state['usable'] && 'pro' === $state['plan'] ) {
+	$feed_limit_label = sprintf(
+		/* translators: %d: max feeds on pro plan */
+		__( '%d 件まで', 'custom-rss-builder' ),
+		defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10
+	);
+}
 $version_info         = function_exists( 'crb_get_plugin_version_info' ) ? crb_get_plugin_version_info() : array( 'version' => '', 'build' => '' );
 $version_line         = '';
 if ( ! empty( $version_info['version'] ) ) {
@@ -297,9 +304,11 @@ if ( ! empty( $version_info['version'] ) ) {
 		<p>
 			<?php
 			printf(
-				/* translators: %s: max slot token e.g. {%12%} */
-				esc_html__( 'フィード無制限・スロット {%%1%%}〜%s が使える Pro プラン（月額）です。', 'custom-rss-builder' ),
-				'{%' . ( function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20 ) . '%}'
+				/* translators: 1: max slot token e.g. {%20%}, 2: monthly price label, 3: max feeds */
+				esc_html__( 'フィード %3$d 件まで・スロット {%%1%%}〜%1$s が使える Pro プラン（%2$s）です。', 'custom-rss-builder' ),
+				'{%' . ( function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20 ) . '%}',
+				function_exists( 'crb_pro_monthly_price_label' ) ? crb_pro_monthly_price_label() : __( '月額 3,300 円（税込）', 'custom-rss-builder' ),
+				defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10
 			);
 			?>
 		</p>
@@ -312,7 +321,13 @@ if ( ! empty( $version_info['version'] ) ) {
 			<?php esc_html_e( 'お支払い後、Pro ライセンスキーをメールでお送りします。届いたキーを下のフォームに入力して「有効化」してください。', 'custom-rss-builder' ); ?>
 		</p>
 		<p class="description">
-			<?php esc_html_e( 'Pro 特典: 最初の 1 フィードの初期設定代行が 1 回無料です（2 回目以降 1,000 円税別／回）。', 'custom-rss-builder' ); ?>
+			<?php
+			printf(
+				/* translators: %s: repeat setup price label */
+				esc_html__( 'Pro 特典: 最初の 1 フィードの初期設定代行が 1 回無料です（2 回目以降 %s）。', 'custom-rss-builder' ),
+				esc_html( function_exists( 'crb_pro_setup_repeat_price_label' ) ? crb_pro_setup_repeat_price_label() : __( '1,100 円（税込）／回', 'custom-rss-builder' ) )
+			);
+			?>
 			<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
 				<?php
 				echo ' ';
@@ -335,7 +350,15 @@ if ( ! empty( $version_info['version'] ) ) {
 		</p>
 		<ul class="crb-license-steps">
 			<li><?php esc_html_e( '初回（Pro お申し込み後・最初の 1 フィード）: 無料', 'custom-rss-builder' ); ?></li>
-			<li><?php esc_html_e( '2 回目以降: 1,000 円（税別）／回（税込 1,100 円）', 'custom-rss-builder' ); ?></li>
+			<li>
+				<?php
+				printf(
+					/* translators: %s: repeat setup price label */
+					esc_html__( '2 回目以降: %s', 'custom-rss-builder' ),
+					esc_html( function_exists( 'crb_pro_setup_repeat_price_label' ) ? crb_pro_setup_repeat_price_label() : __( '1,100 円（税込）／回', 'custom-rss-builder' ) )
+				);
+				?>
+			</li>
 		</ul>
 		<p class="description">
 			<?php esc_html_e( 'お客様側: フィード編集の「設定をインポート」→ プレビュー →「保存」。', 'custom-rss-builder' ); ?>

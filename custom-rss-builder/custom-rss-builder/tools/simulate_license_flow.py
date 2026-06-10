@@ -106,6 +106,20 @@ def main() -> int:
         ok("maxSlotCount passed to JS")
 
     step("5. Pro へのアップグレード")
+    lic = read("includes/functions-license.php")
+    if "CRB_LICENSE_PRO_FEED_LIMIT" not in lic:
+        fail("missing CRB_LICENSE_PRO_FEED_LIMIT")
+    elif ", 10 );" not in lic.split("CRB_LICENSE_PRO_FEED_LIMIT", 1)[1][:30]:
+        fail("pro feed limit should be 10")
+    else:
+        ok("pro feed limit constant = 10")
+    pro_gate = lic.split("'pro' === $plan", 1)[1].split("'free' !== $plan", 1)[0]
+    if "CRB_LICENSE_PRO_FEED_LIMIT" not in pro_gate or "create_feed" not in pro_gate:
+        fail("pro plan should gate create_feed by feed limit")
+    elif "case 'save':" not in pro_gate:
+        fail("pro plan should gate save when over feed limit")
+    else:
+        ok("pro plan gates create_feed and save by feed limit")
     if 'value="pro"' not in read("license-server/admin/views/licenses.php"):
         fail("manual issue Pro option")
     else:
@@ -158,6 +172,16 @@ def main() -> int:
         fail("feed-import-settings should use plan-specific schedule min")
     else:
         ok("import settings UI uses plan-specific min")
+    if "import_schedule_auto" not in imp_set:
+        fail("feed-import-settings missing free plan import_schedule_auto toggle")
+    elif "crb-import-schedule-field--free" not in imp_set:
+        fail("feed-import-settings missing free plan fixed schedule UI")
+    else:
+        ok("free plan uses fixed 24h schedule UI")
+    if "crb_import_schedule_hours_from_request" not in sched:
+        fail("missing crb_import_schedule_hours_from_request()")
+    else:
+        ok("import schedule hours from request helper present")
 
     print()
     if FAIL:

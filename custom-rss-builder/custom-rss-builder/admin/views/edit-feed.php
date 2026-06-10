@@ -74,7 +74,11 @@ $values          = array(
 		'enabled'             => $is_post ? ! empty( $_POST['import_enabled'] ) : ! empty( $stored_import['enabled'] ),
 		'schedule'            => $is_post
 			? ( function_exists( 'crb_import_schedule_slug_from_hours' )
-				? crb_import_schedule_slug_from_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) )
+				? crb_import_schedule_slug_from_hours(
+					function_exists( 'crb_import_schedule_hours_from_request' )
+						? crb_import_schedule_hours_from_request()
+						: wp_unslash( $_POST['import_schedule_hours'] ?? 0 )
+				)
 				: 'off' )
 			: (string) ( $stored_import['schedule'] ?? 'off' ),
 		'post_status'         => $is_post ? sanitize_key( wp_unslash( $_POST['import_post_status'] ?? 'draft' ) ) : (string) $stored_import['post_status'],
@@ -296,12 +300,14 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 				<?php elseif ( ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' ) ) : ?>
 					<p class="description">
 						<?php
-						$crb_pro_slot_max = function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20;
+						$crb_pro_slot_max   = function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20;
+						$crb_pro_feed_limit = defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10;
 						printf(
-							/* translators: 1: first slot token, 2: max slot token */
-							esc_html__( '現在のプラン（Pro）: スロット %1$s〜%2$s、フィード数無制限。', 'custom-rss-builder' ),
+							/* translators: 1: first slot token, 2: max slot token, 3: max feeds */
+							esc_html__( '現在のプラン（Pro）: スロット %1$s〜%2$s、フィード数 %3$d 件まで。', 'custom-rss-builder' ),
 							'{%1%}',
-							'{%' . $crb_pro_slot_max . '%}'
+							'{%' . $crb_pro_slot_max . '%}',
+							$crb_pro_feed_limit
 						);
 						?>
 					</p>
