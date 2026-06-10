@@ -899,6 +899,10 @@
 	margin: 16px 0 0;
 }
 
+.crb-feed-pack-manual-link {
+	margin: 0 0 12px;
+}
+
 .crb-feed-pack-import-file {
 	display: none;
 }

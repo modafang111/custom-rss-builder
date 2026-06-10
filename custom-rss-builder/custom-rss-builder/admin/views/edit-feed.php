@@ -19,6 +19,7 @@ $has_import_preview = $has_preview && isset( $preview_data['import_posts'] );
 $stored_css      = $feed_is_array ? crb_get_feed_css_config( $feed ) : crb_empty_css_config();
 $crb_demo_samples = function_exists( 'crb_get_demo_sample_patterns' ) ? crb_get_demo_sample_patterns() : array();
 $crb_demo_index   = function_exists( 'crb_demo_samples_index_url' ) ? crb_demo_samples_index_url() : '';
+$crb_feed_pack_manual_url = function_exists( 'crb_feed_pack_manual_page_url' ) ? crb_feed_pack_manual_page_url() : '';
 $stored_mode     = $feed_is_array ? crb_get_feed_extraction_mode( $feed ) : 'css';
 if ( $is_post ) {
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing
@@ -475,6 +476,19 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 	<p class="crb-panel__lead">
 		<?php esc_html_e( 'JSON 設定パックの読み込み・出力。インポートは現在の編集画面に反映するだけで、保存するまで DB は更新されません。', 'custom-rss-builder' ); ?>
 	</p>
+	<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
+		<p class="crb-feed-pack-manual-link description">
+			<?php
+			echo wp_kses_post(
+				sprintf(
+					/* translators: %s: feed pack manual URL on authority site */
+					__( '詳しい手順: <a href="%s" target="_blank" rel="noopener noreferrer">フィード設定パック（エクスポート／インポート）手順（正本サイト）</a>', 'custom-rss-builder' ),
+					esc_url( $crb_feed_pack_manual_url )
+				)
+			);
+			?>
+		</p>
+	<?php endif; ?>
 	<p class="crb-feed-pack__actions">
 		<button type="button" class="button button-secondary" id="crb-import-feed-pack">
 			<?php esc_html_e( '設定をインポート', 'custom-rss-builder' ); ?>

@@ -31,6 +31,7 @@ def main() -> int:
     demo_php = read("includes/functions-demo-samples.php")
     install_php = read("includes/functions-install-manual.php")
     ls_settings = read("license-server/admin/views/settings.php")
+    edit_feed = read("admin/views/edit-feed.php")
 
     if "functions-feed-pack-manual.php" not in main_php:
         fail("bootstrap must require functions-feed-pack-manual.php")
@@ -74,6 +75,13 @@ def main() -> int:
         fail("license-server settings missing feed-pack manual link")
     else:
         ok("license-server settings link present")
+
+    if "crb_feed_pack_manual_page_url" not in edit_feed:
+        fail("edit-feed.php missing feed-pack manual link")
+    elif "crb-feed-pack-manual-link" not in edit_feed:
+        fail("edit-feed.php missing crb-feed-pack-manual-link marker")
+    else:
+        ok("client edit-feed links to feed-pack manual")
 
     m_build = re.search(r"define\s*\(\s*'CRB_BUILD_ID'\s*,\s*'([^']+)'\s*\)", main_php)
     if not m_build:
