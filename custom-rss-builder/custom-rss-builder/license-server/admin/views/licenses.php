@@ -28,6 +28,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<?php esc_html_e( 'プラン', 'crb-license-server' ); ?>
 			<select name="plan">
 				<option value="free" selected><?php esc_html_e( '無料', 'crb-license-server' ); ?></option>
+				<option value="standard"><?php esc_html_e( 'スタンダード', 'crb-license-server' ); ?></option>
 				<option value="pro"><?php esc_html_e( 'Pro', 'crb-license-server' ); ?></option>
 			</select>
 		</label>
@@ -77,7 +78,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<td><?php echo esc_html( (string) $id ); ?></td>
 						<td><code><?php echo esc_html( (string) ( $row['license_key'] ?? '' ) ); ?></code></td>
 						<td><?php echo esc_html( (string) ( $row['email'] ?? '' ) ); ?></td>
-						<td><?php echo esc_html( 'pro' === ( $row['plan'] ?? '' ) ? __( 'Pro', 'crb-license-server' ) : __( '無料', 'crb-license-server' ) ); ?></td>
+						<td><?php echo esc_html( function_exists( 'crb_ls_admin_plan_label' ) ? crb_ls_admin_plan_label( (string) ( $row['plan'] ?? '' ) ) : (string) ( $row['plan'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( function_exists( 'crb_ls_admin_status_label' ) ? crb_ls_admin_status_label( (string) ( $row['status'] ?? '' ) ) : (string) ( $row['status'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( (string) ( $row['site_url'] ?? '' ) ); ?></td>
 						<td>

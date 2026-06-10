@@ -143,11 +143,43 @@ function crb_ls_license_is_usable( array $license ) {
 
 /**
  * @param array<string, mixed> $license License row.
- * @return string free|pro
+ * @return string free|standard|pro
  */
 function crb_ls_license_plan( array $license ) {
 	$plan = sanitize_key( (string) ( $license['plan'] ?? 'free' ) );
-	return in_array( $plan, array( 'free', 'pro' ), true ) ? $plan : 'free';
+	return in_array( $plan, array( 'free', 'standard', 'pro' ), true ) ? $plan : 'free';
+}
+
+/**
+ * @param string $plan Plan slug.
+ * @return string
+ */
+function crb_ls_admin_plan_label( $plan ) {
+	switch ( sanitize_key( (string) $plan ) ) {
+		case 'pro':
+			return __( 'Pro', 'crb-license-server' );
+		case 'standard':
+			return __( 'スタンダード', 'crb-license-server' );
+		case 'free':
+		default:
+			return __( '無料', 'crb-license-server' );
+	}
+}
+
+/**
+ * @param string $plan Plan slug.
+ * @return string
+ */
+function crb_ls_mail_plan_label( $plan ) {
+	switch ( sanitize_key( (string) $plan ) ) {
+		case 'pro':
+			return __( 'Pro（有料）', 'crb-license-server' );
+		case 'standard':
+			return __( 'スタンダード（有料）', 'crb-license-server' );
+		case 'free':
+		default:
+			return __( '無料', 'crb-license-server' );
+	}
 }
 
 /**
@@ -220,9 +252,7 @@ function crb_ls_mail_subject_template( $plan ) {
  * @return string
  */
 function crb_ls_replace_mail_tags( $template, $license_key, $plan ) {
-	$plan_label = 'pro' === sanitize_key( (string) $plan )
-		? __( 'Pro（有料）', 'crb-license-server' )
-		: __( '無料', 'crb-license-server' );
+	$plan_label = crb_ls_mail_plan_label( $plan );
 
 	$site_name = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 	if ( '' === trim( $site_name ) || false !== stripos( $site_name, 'custom-rss-builder' ) ) {
@@ -255,21 +285,38 @@ function crb_ls_mail_default_intro() {
 }
 
 /**
- * @param string $plan free|pro
+ * @param string $plan free|standard|pro
  * @return string
  */
 function crb_ls_mail_plan_features_line( $plan ) {
-	if ( 'pro' === sanitize_key( (string) $plan ) ) {
-		$slots = function_exists( 'crb_license_pro_slot_count' )
-			? (int) crb_license_pro_slot_count()
-			: ( defined( 'CRB_RECORD_SLOT_COUNT' ) ? (int) CRB_RECORD_SLOT_COUNT : 20 );
-		$range = function_exists( 'crb_license_format_slot_range_text' )
+	$plan = sanitize_key( (string) $plan );
+	if ( 'standard' === $plan ) {
+		$feed_limit = defined( 'CRB_LICENSE_STANDARD_FEED_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_FEED_LIMIT : 3;
+		$slots      = defined( 'CRB_LICENSE_STANDARD_SLOT_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_SLOT_LIMIT : 5;
+		$range      = function_exists( 'crb_license_format_slot_range_text' )
 			? crb_license_format_slot_range_text( $slots )
 			: sprintf( '{%1%%}〜{%d%%}', $slots );
 
 		return sprintf(
-			/* translators: %s: slot range e.g. {%1%}〜{%20%} */
-			__( 'ご利用内容: フィード無制限・スロット %s・AI テキスト変換', 'crb-license-server' ),
+			/* translators: 1: max feeds, 2: slot range e.g. {%1%}〜{%5%} */
+			__( 'ご利用内容: フィード %1$d 件まで・スロット %2$s・自動取り込み 1 時間〜', 'crb-license-server' ),
+			$feed_limit,
+			$range
+		);
+	}
+	if ( 'pro' === $plan ) {
+		$feed_limit = defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10;
+		$slots      = function_exists( 'crb_license_pro_slot_count' )
+			? (int) crb_license_pro_slot_count()
+			: ( defined( 'CRB_RECORD_SLOT_COUNT' ) ? (int) CRB_RECORD_SLOT_COUNT : 20 );
+		$range      = function_exists( 'crb_license_format_slot_range_text' )
+			? crb_license_format_slot_range_text( $slots )
+			: sprintf( '{%1%%}〜{%d%%}', $slots );
+
+		return sprintf(
+			/* translators: 1: max feeds, 2: slot range e.g. {%1%}〜{%20%} */
+			__( 'ご利用内容: フィード %1$d 件まで・スロット %2$s・AI テキスト変換', 'crb-license-server' ),
+			$feed_limit,
 			$range
 		);
 	}
@@ -368,6 +415,93 @@ function crb_ls_mail_ai_manual_block( $plan ) {
 }
 
 /**
+ * 初期設定代行（2 回目以降）の決済 URL（ライセンス設定で登録）。
+ *
+ * @return string
+ */
+function crb_ls_setup_service_payment_url() {
+	if ( defined( 'CRB_SETUP_SERVICE_PAYMENT_URL' ) && '' !== (string) CRB_SETUP_SERVICE_PAYMENT_URL ) {
+		return esc_url_raw( (string) CRB_SETUP_SERVICE_PAYMENT_URL );
+	}
+
+	$url = esc_url_raw( (string) crb_ls_get_option( 'mail_setup_service_payment_url', '' ) );
+
+	/**
+	 * @param string $url Setup service payment URL.
+	 */
+	return (string) apply_filters( 'crb_setup_service_payment_url', $url );
+}
+
+/**
+ * @return string
+ */
+function crb_ls_mail_feed_pack_manual_url() {
+	if ( ! function_exists( 'crb_feed_pack_manual_page_url' ) ) {
+		return '';
+	}
+
+	return esc_url_raw( crb_feed_pack_manual_page_url() );
+}
+
+/**
+ * Pro キー送付メール用：初期設定代行の案内ブロック。
+ *
+ * @param string $plan free|standard|pro
+ * @return string
+ */
+function crb_ls_mail_setup_service_block( $plan ) {
+	$plan = sanitize_key( (string) $plan );
+	if ( ! in_array( $plan, array( 'standard', 'pro' ), true ) ) {
+		return '';
+	}
+
+	$manual_url   = crb_ls_mail_feed_pack_manual_url();
+	$payment_url  = crb_ls_setup_service_payment_url();
+	$custom_block = trim( (string) crb_ls_get_option( 'mail_setup_service_block', '' ) );
+	if ( '' !== $custom_block ) {
+		return crb_ls_mail_apply_tags( $custom_block, '', $plan );
+	}
+
+	$lines   = array();
+	$lines[] = __( '【有料プラン特典：初期設定代行（初回1フィード・1回無料）】', 'crb-license-server' );
+	$lines[] = __( 'フィード設定（セレクタ等）を当方で作成し、設定パック（JSON）でお渡しします。', 'crb-license-server' );
+	$lines[] = '';
+	$lines[] = __( '■ お申し込み方法（初回・無料）', 'crb-license-server' );
+	$lines[] = __( '1. 上記キーでライセンスを有効化する', 'crb-license-server' );
+	$lines[] = __( '2. このメールに返信し、次をお知らせください', 'crb-license-server' );
+	$lines[] = __( '   ・対象ページの URL', 'crb-license-server' );
+	$lines[] = __( '   ・RSS に載せたい内容の概要（任意）', 'crb-license-server' );
+	$lines[] = '';
+	$repeat_price = function_exists( 'crb_pro_setup_repeat_price_label' )
+		? crb_pro_setup_repeat_price_label()
+		: __( '1,100 円（税込）／回', 'crb-license-server' );
+	$lines[]      = sprintf(
+		/* translators: %s: repeat setup price label */
+		__( '■ 2フィード目以降・作り直し（%s）', 'crb-license-server' ),
+		$repeat_price
+	);
+	if ( '' !== $payment_url ) {
+		$lines[] = sprintf(
+			/* translators: %s: payment URL */
+			__( '決済 URL: %s', 'crb-license-server' ),
+			$payment_url
+		);
+		$lines[] = __( 'お申し込みは上記決済後、このメールに返信で対象 URL をお知らせください。', 'crb-license-server' );
+	} else {
+		$lines[] = __( 'お申し込みはこのメールへの返信でご連絡ください。', 'crb-license-server' );
+	}
+	if ( '' !== $manual_url ) {
+		$lines[] = sprintf(
+			/* translators: %s: feed pack manual URL */
+			__( '詳細: %s', 'crb-license-server' ),
+			$manual_url . '#crb-fpack-pro-service'
+		);
+	}
+
+	return implode( "\n", $lines );
+}
+
+/**
  * @param string $plan free|pro
  * @return string
  */
@@ -379,7 +513,7 @@ function crb_ls_mail_activation_block( $plan ) {
 	$lines[] = __( '3. 「ライセンスキーを有効化」欄に、下記キーを貼り付けて「有効化」を押す', 'crb-license-server' );
 	$lines[] = __( '4. 「現在の状態」でプランと「このサイトで利用可：はい」を確認', 'crb-license-server' );
 
-	if ( 'pro' === sanitize_key( (string) $plan ) ) {
+	if ( in_array( sanitize_key( (string) $plan ), array( 'standard', 'pro' ), true ) ) {
 		$lines[] = __( '※ 1 つのキーは 1 サイトのみで利用できます（別サイトでは有効化できません）', 'crb-license-server' );
 	}
 
@@ -399,6 +533,7 @@ function crb_ls_mail_default_body_template() {
 			'{download_block}',
 			'{install_manual_block}',
 			'{activation_block}',
+			'{setup_service_block}',
 			'{ai_manual_block}',
 		)
 	);
@@ -531,9 +666,7 @@ function crb_ls_mail_download_block( $plan = '' ) {
  * @return array<string, string>
  */
 function crb_ls_mail_tag_map( $license_key, $plan ) {
-	$plan_label = 'pro' === sanitize_key( (string) $plan )
-		? __( 'Pro（有料）', 'crb-license-server' )
-		: __( '無料', 'crb-license-server' );
+	$plan_label = crb_ls_mail_plan_label( $plan );
 
 	$intro = crb_ls_get_option( 'mail_intro', '' );
 	if ( '' === trim( $intro ) ) {
@@ -551,8 +684,11 @@ function crb_ls_mail_tag_map( $license_key, $plan ) {
 	$download_block      = crb_ls_mail_download_block( $plan );
 	$install_manual_url  = crb_ls_mail_install_manual_url();
 	$install_manual_block = crb_ls_mail_install_manual_block();
-	$ai_manual_block     = crb_ls_mail_ai_manual_block( $plan );
-	$plan_features_line  = crb_ls_mail_plan_features_line( $plan );
+	$ai_manual_block        = crb_ls_mail_ai_manual_block( $plan );
+	$setup_service_block    = crb_ls_mail_setup_service_block( $plan );
+	$setup_service_pay_url  = crb_ls_setup_service_payment_url();
+	$feed_pack_manual_url   = crb_ls_mail_feed_pack_manual_url();
+	$plan_features_line     = crb_ls_mail_plan_features_line( $plan );
 
 	$map = array(
 		'{intro}'                => (string) $intro,
@@ -572,8 +708,11 @@ function crb_ls_mail_tag_map( $license_key, $plan ) {
 		'{download_block}'       => $download_block,
 		'{install_manual_url}'   => $install_manual_url,
 		'{install_manual_block}' => $install_manual_block,
-		'{ai_manual_url}'        => crb_ls_mail_ai_manual_url(),
-		'{ai_manual_block}'      => $ai_manual_block,
+		'{ai_manual_url}'              => crb_ls_mail_ai_manual_url(),
+		'{ai_manual_block}'            => $ai_manual_block,
+		'{setup_service_block}'        => $setup_service_block,
+		'{setup_service_payment_url}'  => $setup_service_pay_url,
+		'{feed_pack_manual_url}'       => $feed_pack_manual_url,
 	);
 
 	// intro / activation_hint 内にもタグを書けるよう二段置換（最大2パス）。

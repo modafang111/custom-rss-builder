@@ -11,9 +11,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 $is_client_screen        = function_exists( 'crb_license_ui_is_client_screen' ) && crb_license_ui_is_client_screen();
 $license_key_input_value = (string) ( $settings['license_key'] ?? '' );
-$is_pro_upgrade_form     = $is_client_screen && $state['usable'] && 'free' === $state['plan'];
+$is_paid_upgrade_form    = $is_client_screen && $state['usable'] && in_array( (string) $state['plan'], array( 'free', 'standard' ), true );
+$is_pro_upgrade_form     = $is_paid_upgrade_form;
 
-if ( $is_pro_upgrade_form ) {
+if ( $is_paid_upgrade_form ) {
 	$license_key_input_value = '';
 }
 ?>
@@ -24,13 +25,13 @@ if ( $is_pro_upgrade_form ) {
 	<?php endif; ?>
 	<h2 class="crb-panel__title">
 		<?php
-		if ( $is_pro_upgrade_form ) {
+		if ( $is_pro_upgrade_form && 'standard' === $state['plan'] ) {
 			esc_html_e( 'Pro にアップグレード', 'custom-rss-builder' );
+		} elseif ( $is_pro_upgrade_form ) {
+			esc_html_e( '有料プランの有効化', 'custom-rss-builder' );
 		} elseif ( $is_client_screen ) {
-			if ( $state['usable'] && 'pro' === $state['plan'] ) {
+			if ( $state['usable'] && in_array( (string) $state['plan'], array( 'standard', 'pro' ), true ) ) {
 				esc_html_e( 'ライセンスキー', 'custom-rss-builder' );
-			} elseif ( $state['usable'] ) {
-				esc_html_e( 'Pro にアップグレード', 'custom-rss-builder' );
 			} else {
 				esc_html_e( 'ライセンスの有効化', 'custom-rss-builder' );
 			}
@@ -42,13 +43,15 @@ if ( $is_pro_upgrade_form ) {
 		?>
 	</h2>
 	<p class="description">
-		<?php if ( $is_pro_upgrade_form ) : ?>
-			<?php esc_html_e( 'Pro 用ライセンスキーを入力して「有効化」を押してください。無料プランのキーはそのまま残しておいて構いません。', 'custom-rss-builder' ); ?>
+		<?php if ( $is_pro_upgrade_form && 'standard' === $state['plan'] ) : ?>
+			<?php esc_html_e( 'Pro 用ライセンスキーを入力して「Pro を有効化」を押してください。', 'custom-rss-builder' ); ?>
+		<?php elseif ( $is_pro_upgrade_form ) : ?>
+			<?php esc_html_e( 'スタンダードまたは Pro 用ライセンスキーを入力して「有効化」を押してください。無料プランのキーはそのまま残しておいて構いません。', 'custom-rss-builder' ); ?>
 		<?php elseif ( $is_client_screen ) : ?>
 			<?php if ( $state['usable'] && 'pro' === $state['plan'] ) : ?>
 				<?php esc_html_e( 'Pro が有効です。キーを変更するときだけ入力して「有効化」を押してください。', 'custom-rss-builder' ); ?>
-			<?php elseif ( $state['usable'] ) : ?>
-				<?php esc_html_e( 'Pro 用キーを入力して「Pro を有効化」を押してください。', 'custom-rss-builder' ); ?>
+			<?php elseif ( $state['usable'] && 'standard' === $state['plan'] ) : ?>
+				<?php esc_html_e( 'スタンダードが有効です。キーを変更するときだけ入力して「有効化」を押してください。', 'custom-rss-builder' ); ?>
 			<?php else : ?>
 				<?php
 				$portal_url = function_exists( 'crb_license_registration_portal_url' ) ? crb_license_registration_portal_url() : '';
@@ -88,14 +91,30 @@ if ( $is_pro_upgrade_form ) {
 					id="crb-license-key"
 					value="<?php echo esc_attr( $license_key_input_value ); ?>"
 					autocomplete="off"
-					placeholder="<?php echo $is_pro_upgrade_form ? esc_attr__( 'Pro 用キー（CRB-XXXXX-…）', 'custom-rss-builder' ) : esc_attr( 'CRB-XXXXX-XXXXX-XXXXX-XXXXX' ); ?>"
+					placeholder="<?php
+					if ( $is_pro_upgrade_form && 'standard' === $state['plan'] ) {
+						echo esc_attr__( 'Pro 用キー（CRB-XXXXX-…）', 'custom-rss-builder' );
+					} elseif ( $is_pro_upgrade_form ) {
+						echo esc_attr__( '有料プラン用キー（CRB-XXXXX-…）', 'custom-rss-builder' );
+					} else {
+						echo esc_attr( 'CRB-XXXXX-XXXXX-XXXXX-XXXXX' );
+					}
+					?>"
 				/>
 			</td>
 		</tr>
 	</table>
 	<p>
 		<button type="submit" name="crb_license_action" value="activate" class="button button-primary">
-			<?php echo $is_pro_upgrade_form ? esc_html__( 'Pro を有効化', 'custom-rss-builder' ) : esc_html__( '有効化', 'custom-rss-builder' ); ?>
+			<?php
+			if ( $is_pro_upgrade_form && 'standard' === $state['plan'] ) {
+				esc_html_e( 'Pro を有効化', 'custom-rss-builder' );
+			} elseif ( $is_pro_upgrade_form ) {
+				esc_html_e( '有効化', 'custom-rss-builder' );
+			} else {
+				esc_html_e( '有効化', 'custom-rss-builder' );
+			}
+			?>
 		</button>
 		<?php if ( $state['usable'] ) : ?>
 			<button type="submit" name="crb_license_action" value="check" class="button"><?php esc_html_e( '状態を再確認', 'custom-rss-builder' ); ?></button>

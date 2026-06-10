@@ -46,11 +46,22 @@ def main() -> int:
     else:
         ok("max_slots ordering")
 
-    # Client: Pro CTA panel when free + usable
-    if "$show_client_pro_cta" in lv and "Pro を申し込む" in lv:
-        ok("client pro payment CTA on license screen")
+    # Client: Standard + Pro CTA when free + usable
+    if (
+        "$show_client_free_upgrade_ctas" in lv
+        and "スタンダードを申し込む" in lv
+        and "Pro を申し込む" in lv
+        and "CRB_STANDARD_PAYMENT_URL" in fl
+        and "crb_license_standard_payment_url" in fl
+    ):
+        ok("client standard/pro upgrade CTAs on license screen")
     else:
-        fail("client should show Pro payment CTA when free")
+        fail("client should show Standard and Pro CTAs when free + usable")
+
+    if "'standard'" in fl and "CRB_LICENSE_STANDARD_FEED_LIMIT" in fl and "CRB_LICENSE_STANDARD_SLOT_LIMIT" in fl:
+        ok("standard plan limits in functions-license.php")
+    else:
+        fail("missing standard plan constants/gates")
 
     # Server dev: ol panel only on non-client
     if re.search(
@@ -136,6 +147,19 @@ def main() -> int:
         ok("plan comparison when comparison_rows available")
     else:
         fail("show_plan_comparison wiring missing")
+
+    if "function crb_license_plan_label_for_state" not in fl:
+        fail("crb_license_plan_label_for_state missing")
+    elif "crb_license_plan_label_for_state" not in lv:
+        fail("license-settings should use crb_license_plan_label_for_state")
+    else:
+        ok("unregistered plan label for empty license key")
+
+    gs = fl.split("function crb_license_get_state", 1)[1].split("function crb_license_can", 1)[0]
+    if "'' === $key" not in gs or "'plan'        => 'free'" not in gs:
+        fail("get_state should reset plan when license key is empty")
+    else:
+        ok("get_state ignores stale plan without license key")
 
     build = re.search(r"CRB_BUILD_ID',\s*'([^']+)'", main_php)
     if build:

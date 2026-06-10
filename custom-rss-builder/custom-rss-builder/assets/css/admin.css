@@ -863,6 +863,25 @@
 	width: 5em;
 }
 
+.crb-import-schedule-field--free {
+	flex-wrap: wrap;
+	gap: 10px 12px;
+}
+
+.crb-import-schedule-field--free .crb-import-schedule-fixed {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	color: #646970;
+}
+
+.crb-import-schedule-field--free .crb-import-schedule-fixed input[disabled] {
+	width: 5em;
+	background: #f0f0f1;
+	color: #50575e;
+	cursor: not-allowed;
+}
+
 .crb-form-footer {
 	position: sticky;
 	bottom: 0;
@@ -1069,7 +1088,7 @@
 }
 
 .crb-license-plan-table {
-	max-width: 720px;
+	max-width: 960px;
 	margin-top: 8px;
 }
 

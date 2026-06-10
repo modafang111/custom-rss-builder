@@ -58,6 +58,10 @@ def main() -> int:
                 fail(f"{label}: missing baked CRB_LICENSE_API_SECRET")
             else:
                 ok(f"{label}: CRB_LICENSE_API_SECRET baked in")
+            if f"{SLUG}/uninstall.php" not in names:
+                fail(f"{label}: missing uninstall.php")
+            else:
+                ok(f"{label}: uninstall.php present")
 
         if any("/license-server/" in n for n in names):
             if variant == "client":

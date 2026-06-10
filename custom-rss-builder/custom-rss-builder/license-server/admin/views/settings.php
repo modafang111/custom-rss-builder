@@ -32,6 +32,11 @@ $mail_download_heading     = crb_ls_get_option(
 	__( '【プラグインのダウンロード】', 'crb-license-server' )
 );
 $mail_download_install_hint = crb_ls_get_option( 'mail_download_install_hint', '' );
+$mail_setup_service_payment_url = crb_ls_get_option( 'mail_setup_service_payment_url', '' );
+$mail_setup_service_block       = crb_ls_get_option( 'mail_setup_service_block', '' );
+$mail_feed_pack_manual_url      = function_exists( 'crb_ls_mail_feed_pack_manual_url' )
+	? crb_ls_mail_feed_pack_manual_url()
+	: '';
 $mail_subject_preview = crb_ls_mail_subject_template( 'pro' );
 $mail_body_preview_pro = function_exists( 'crb_ls_mail_body' )
 	? crb_ls_mail_body( 'XXXX-XXXX-XXXX-XXXX', 'pro' )
@@ -57,6 +62,26 @@ $mail_locked          = defined( 'CRB_LS_MAIL_FROM' ) || defined( 'CRB_LS_MAIL_F
 
 	<?php if ( ! empty( $_GET['crb-samples-reinstalled'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( '製品・練習用の固定ページを更新しました。', 'crb-license-server' ); ?></p></div>
+	<?php endif; ?>
+
+	<?php if ( ! empty( $_GET['crb-sales-lp-reinstalled'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( '販売 LP（フロントページ）を更新しました。', 'crb-license-server' ); ?></p></div>
+	<?php endif; ?>
+
+	<?php if ( function_exists( 'crb_license_is_authoritative_server' ) && crb_license_is_authoritative_server() && function_exists( 'crb_sales_lp_page_url' ) ) : ?>
+		<?php $crb_sales_lp_url = crb_sales_lp_page_url(); ?>
+		<div class="card" style="max-width:720px;margin:1em 0;padding:1em;">
+			<h2 class="title"><?php esc_html_e( '販売 LP（フロントページ）', 'crb-license-server' ); ?></h2>
+			<p><?php esc_html_e( 'サイトトップ（無料ライセンス申請リンク先）に表示する販売ページを生成します。練習用サンプル（crb-practice-samples）とは別の固定ページです。', 'crb-license-server' ); ?></p>
+			<p>
+				<a class="button button-secondary" href="<?php echo esc_url( $crb_sales_lp_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( '販売 LP を開く', 'crb-license-server' ); ?></a>
+			</p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:12px;">
+				<?php wp_nonce_field( 'crb_sales_lp_reinstall' ); ?>
+				<input type="hidden" name="action" value="crb_sales_lp_reinstall">
+				<?php submit_button( __( '販売 LP を再生成', 'crb-license-server' ), 'secondary', 'submit', false ); ?>
+			</form>
+		</div>
 	<?php endif; ?>
 
 	<?php if ( function_exists( 'crb_license_is_authoritative_server' ) && crb_license_is_authoritative_server() && function_exists( 'crb_demo_samples_index_url' ) ) : ?>
@@ -182,6 +207,37 @@ $mail_locked          = defined( 'CRB_LS_MAIL_FROM' ) || defined( 'CRB_LS_MAIL_F
 			<?php endif; ?>
 		</table>
 
+		<h2><?php esc_html_e( 'Pro 初期設定代行', 'crb-license-server' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Pro キー送付メールに、初回無料代行の案内を自動挿入します（無料ライセンスメールには含まれません）。', 'crb-license-server' ); ?></p>
+		<table class="form-table">
+			<tr>
+				<th><label for="mail_setup_service_payment_url"><?php esc_html_e( '決済 URL（2回目以降）', 'crb-license-server' ); ?></label></th>
+				<td>
+					<input type="url" class="large-text" name="mail_setup_service_payment_url" id="mail_setup_service_payment_url" value="<?php echo esc_attr( $mail_setup_service_payment_url ); ?>" placeholder="https://..." />
+					<p class="description"><?php esc_html_e( '1,100円（税込）の 1 回払い PayPal 等の URL。空欄のときは決済リンク行を省略し、返信での申込案内のみになります。', 'crb-license-server' ); ?></p>
+				</td>
+			</tr>
+			<?php if ( '' !== $mail_feed_pack_manual_url ) : ?>
+			<tr>
+				<th><?php esc_html_e( '設定パック手順', 'crb-license-server' ); ?></th>
+				<td>
+					<code style="word-break:break-all;"><?php echo esc_html( $mail_feed_pack_manual_url ); ?></code>
+					<p class="description"><?php esc_html_e( 'メール末尾の「詳細」リンクに使用します。', 'crb-license-server' ); ?></p>
+				</td>
+			</tr>
+			<?php endif; ?>
+			<tr>
+				<th><label for="mail_setup_service_block"><?php esc_html_e( '代行案内（上書き）', 'crb-license-server' ); ?></label></th>
+				<td>
+					<textarea name="mail_setup_service_block" id="mail_setup_service_block" class="large-text code" rows="6" placeholder="<?php echo esc_attr__( '空欄のときは標準文面を使用します。', 'crb-license-server' ); ?>"><?php echo esc_textarea( $mail_setup_service_block ); ?></textarea>
+					<p class="description">
+						<?php esc_html_e( '空欄のときは標準文面（初回無料・返信申込・2回目決済 URL）を挿入。タグ:', 'crb-license-server' ); ?>
+						{setup_service_payment_url} {feed_pack_manual_url}
+					</p>
+				</td>
+			</tr>
+		</table>
+
 		<h2><?php esc_html_e( 'ライセンスキー通知メール', 'crb-license-server' ); ?></h2>
 		<?php if ( $mail_locked ) : ?>
 			<p class="description"><?php esc_html_e( '送信者名・送信者メール・件名は固定設定のため、この画面では変更できません。', 'crb-license-server' ); ?></p>
@@ -236,8 +292,8 @@ $mail_locked          = defined( 'CRB_LS_MAIL_FROM' ) || defined( 'CRB_LS_MAIL_F
 				<td>
 					<textarea name="mail_body" id="mail_body" class="large-text code" rows="8" placeholder="<?php echo esc_attr( function_exists( 'crb_ls_mail_default_body_template' ) ? crb_ls_mail_default_body_template() : '' ); ?>"><?php echo esc_textarea( $mail_body ); ?></textarea>
 					<p class="description">
-						<?php esc_html_e( '空欄のときは標準構成（ダウンロード → インストールマニュアル → 有効化）を使用。主なタグ:', 'crb-license-server' ); ?>
-						{intro} {plan_label_line} {plan_features_line} {license_key_line} {license_key} {download_block} {install_manual_block} {activation_block} {ai_manual_block}
+						<?php esc_html_e( '空欄のときは標準構成（ダウンロード → インストールマニュアル → 有効化 → 初期設定代行）を使用。主なタグ:', 'crb-license-server' ); ?>
+						{intro} {plan_label_line} {plan_features_line} {license_key_line} {license_key} {download_block} {install_manual_block} {activation_block} {setup_service_block} {ai_manual_block}
 					</p>
 					<?php if ( '' !== trim( $mail_body_preview_pro ) ) : ?>
 						<details style="margin-top:12px;max-width:48rem;">

@@ -404,6 +404,34 @@ switch ( $action ) {
 		);
 		crb_probe_ok( array( 'reset' => true ) );
 
+	case 'license_simulate_fresh':
+		if ( function_exists( 'crb_license_clear_settings_for_test' ) ) {
+			crb_license_clear_settings_for_test();
+		} else {
+			delete_option( CRB_LICENSE_OPTION_KEY );
+		}
+		crb_probe_ok(
+			array(
+				'deleted' => true,
+				'option'  => CRB_LICENSE_OPTION_KEY,
+			)
+		);
+
+	case 'license_seed_stale':
+		update_option(
+			CRB_LICENSE_OPTION_KEY,
+			array(
+				'license_key'     => '',
+				'plan'            => 'pro',
+				'status'          => 'active',
+				'usable'          => true,
+				'message'         => '',
+				'connection_mode' => 'remote',
+			),
+			false
+		);
+		crb_probe_ok( array( 'seeded' => 'pro_usable_no_key' ) );
+
 	case 'license_issue_free':
 		if ( ! class_exists( 'Custom_RSS_Builder_License_Client' ) ) {
 			crb_probe_fail( 'client missing' );

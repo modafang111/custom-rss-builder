@@ -31,6 +31,8 @@ def main() -> int:
     for fn in (
         "function crb_ls_mail_install_manual_block",
         "function crb_ls_mail_activation_block",
+        "function crb_ls_mail_setup_service_block",
+        "function crb_ls_setup_service_payment_url",
         "function crb_ls_mail_default_body_template",
         "function crb_ls_apply_recommended_mail_defaults",
     ):
@@ -43,6 +45,11 @@ def main() -> int:
         fail_msg("default mail template missing install/activation blocks")
     else:
         ok("default template includes install_manual_block and activation_block")
+
+    if "{setup_service_block}" not in ls:
+        fail_msg("default mail template missing {setup_service_block}")
+    else:
+        ok("default template includes {setup_service_block}")
 
     for fn in (
         "function crb_ls_mail_download_url",
@@ -65,6 +72,7 @@ def main() -> int:
         "mail_download_url",
         "mail_download_password",
         "mail_download_heading",
+        "mail_setup_service_payment_url",
     ):
         if key not in admin or key not in view:
             fail_msg(f"settings UI/save missing {key}")

@@ -14,8 +14,8 @@ $schedule_hours      = 0;
 $schedule_plan_min   = function_exists( 'crb_import_schedule_min_hours_for_plan' )
 	? (int) crb_import_schedule_min_hours_for_plan()
 	: (int) ( defined( 'CRB_IMPORT_SCHEDULE_MIN_HOURS' ) ? CRB_IMPORT_SCHEDULE_MIN_HOURS : 1 );
-$schedule_input_min  = 0;
-$crb_is_free_usable  = false;
+$crb_is_free_usable   = false;
+$crb_schedule_auto_on = false;
 
 if ( function_exists( 'crb_import_schedule_effective_hours_from_slug' ) ) {
 	$schedule_hours = crb_import_schedule_effective_hours_from_slug( $values['import']['schedule'] ?? 'off' );
@@ -23,11 +23,13 @@ if ( function_exists( 'crb_import_schedule_effective_hours_from_slug' ) ) {
 	$schedule_hours = crb_import_schedule_hours_from_slug( $values['import']['schedule'] ?? 'off' );
 }
 
-$schedule_input_min = $schedule_hours > 0 ? $schedule_plan_min : 0;
-
-if ( isset( $crb_license_state ) && is_array( $crb_license_state ) ) {
+if ( function_exists( 'crb_import_schedule_is_free_usable_plan' ) ) {
+	$crb_is_free_usable = crb_import_schedule_is_free_usable_plan();
+} elseif ( isset( $crb_license_state ) && is_array( $crb_license_state ) ) {
 	$crb_is_free_usable = ! empty( $crb_license_state['usable'] ) && 'free' === ( $crb_license_state['plan'] ?? '' );
 }
+
+$crb_schedule_auto_on = $schedule_hours > 0;
 
 ?>
 
@@ -62,61 +64,63 @@ if ( isset( $crb_license_state ) && is_array( $crb_license_state ) ) {
 
 		<td>
 
-			<label class="crb-import-schedule-field" for="crb-import-schedule-hours">
-
-				<input
-
-					type="number"
-
-					name="import_schedule_hours"
-
-					id="crb-import-schedule-hours"
-
-					class="small-text"
-
-					min="<?php echo esc_attr( (string) $schedule_input_min ); ?>"
-
-					max="<?php echo esc_attr( (string) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 ) ); ?>"
-
-					step="1"
-
-					value="<?php echo esc_attr( (string) $schedule_hours ); ?>"
-
-					<?php disabled( $crb_import_disabled ); ?>
-
-				>
-
-				<?php esc_html_e( '時間ごと', 'custom-rss-builder' ); ?>
-
-			</label>
-
-			<p class="description">
-
-				<?php
-
-				printf(
-
-					/* translators: 1: min hours, 2: max hours */
-
-					esc_html__( '数字を入力（%1$d〜%2$d）。0 は自動オフ。%1$d 以上で保存時に WordPress が自分へアクセスして取り込みを開始し、以降も間隔ごとに自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
-
-					(int) $schedule_plan_min,
-
-					(int) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 )
-
-				);
-
-				?>
-
-			</p>
-
 			<?php if ( $crb_is_free_usable ) : ?>
+			<div class="crb-import-schedule-field crb-import-schedule-field--free">
+				<label>
+					<input
+						type="checkbox"
+						name="import_schedule_auto"
+						value="1"
+						<?php checked( $crb_schedule_auto_on ); ?>
+						<?php disabled( $crb_import_disabled ); ?>
+					>
+					<?php esc_html_e( '自動取り込みを行う', 'custom-rss-builder' ); ?>
+				</label>
+				<span class="crb-import-schedule-fixed" id="crb-import-schedule-hours">
+					<input
+						type="text"
+						class="small-text"
+						value="<?php echo esc_attr( (string) (int) $schedule_plan_min ); ?>"
+						disabled
+						readonly
+						tabindex="-1"
+						aria-label="<?php esc_attr_e( '自動取り込み間隔（時間）', 'custom-rss-builder' ); ?>"
+					>
+					<?php esc_html_e( '時間ごと', 'custom-rss-builder' ); ?>
+					<span class="description"><?php esc_html_e( '（無料プラン固定）', 'custom-rss-builder' ); ?></span>
+				</span>
+			</div>
 			<p class="description">
 				<?php
 				printf(
-					/* translators: %d: minimum hours on free plan */
-					esc_html__( '無料プランでは自動取り込みは最短 %d 時間に1回です（保存済みの短い間隔も実行時はこの間隔に揃います）。', 'custom-rss-builder' ),
+					/* translators: %d: fixed hours on free plan */
+					esc_html__( '無料プランでは自動取り込みは %d 時間に1回固定です。オフにする場合は上のチェックを外してください。保存時に WordPress が自分へアクセスして取り込みを開始し、以降も同間隔で自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
 					(int) $schedule_plan_min
+				);
+				?>
+			</p>
+			<?php else : ?>
+			<label class="crb-import-schedule-field" for="crb-import-schedule-hours">
+				<input
+					type="number"
+					name="import_schedule_hours"
+					id="crb-import-schedule-hours"
+					class="small-text"
+					min="<?php echo esc_attr( (string) (int) $schedule_plan_min ); ?>"
+					max="<?php echo esc_attr( (string) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 ) ); ?>"
+					step="1"
+					value="<?php echo esc_attr( (string) $schedule_hours ); ?>"
+					<?php disabled( $crb_import_disabled ); ?>
+				>
+				<?php esc_html_e( '時間ごと', 'custom-rss-builder' ); ?>
+			</label>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: 1: min hours, 2: max hours */
+					esc_html__( '数字を入力（%1$d〜%2$d）。0 は自動オフ。%1$d 以上で保存時に WordPress が自分へアクセスして取り込みを開始し、以降も間隔ごとに自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
+					(int) $schedule_plan_min,
+					(int) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 )
 				);
 				?>
 			</p>

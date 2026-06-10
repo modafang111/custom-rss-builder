@@ -58,6 +58,38 @@ function crb_import_schedule_effective_hours_from_slug( $schedule ) {
 }
 
 /**
+ * 無料プラン（利用可）か。
+ *
+ * @return bool
+ */
+function crb_import_schedule_is_free_usable_plan() {
+	if ( ! function_exists( 'crb_license_get_state' ) ) {
+		return false;
+	}
+	$state = crb_license_get_state();
+	return ! empty( $state['usable'] ) && 'free' === sanitize_key( (string) ( $state['plan'] ?? '' ) );
+}
+
+/**
+ * フィード保存 POST から自動取り込み間隔（時間）を取得。0=オフ。
+ *
+ * @return int
+ */
+function crb_import_schedule_hours_from_request() {
+	if ( crb_import_schedule_is_free_usable_plan() ) {
+		if ( empty( $_POST['import_schedule_auto'] ) ) {
+			return 0;
+		}
+		return defined( 'CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS' )
+			? (int) CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS
+			: 24;
+	}
+
+	// phpcs:ignore WordPress.Security.NonceVerification.Missing
+	return crb_import_schedule_sanitize_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) );
+}
+
+/**
  * @param string $schedule Raw or legacy schedule slug.
  * @return string Normalized slug.
  */

@@ -120,10 +120,41 @@ def main() -> int:
         fail("pro plan should gate save when over feed limit")
     else:
         ok("pro plan gates create_feed and save by feed limit")
-    if 'value="pro"' not in read("license-server/admin/views/licenses.php"):
+    ls_lic = read("license-server/admin/views/licenses.php")
+    if 'value="pro"' not in ls_lic:
         fail("manual issue Pro option")
     else:
         ok("ライセンス管理 → 手動発行 Pro")
+    if 'value="standard"' not in ls_lic:
+        fail("manual issue Standard option")
+    else:
+        ok("ライセンス管理 → 手動発行 Standard")
+
+    step("5b. スタンダードプランのゲート")
+    if "CRB_LICENSE_STANDARD_FEED_LIMIT" not in lic:
+        fail("missing CRB_LICENSE_STANDARD_FEED_LIMIT")
+    elif ", 3 );" not in lic.split("CRB_LICENSE_STANDARD_FEED_LIMIT", 1)[1][:30]:
+        fail("standard feed limit should be 3")
+    else:
+        ok("standard feed limit constant = 3")
+    if "CRB_LICENSE_STANDARD_SLOT_LIMIT" not in lic:
+        fail("missing CRB_LICENSE_STANDARD_SLOT_LIMIT")
+    elif ", 5 );" not in lic.split("CRB_LICENSE_STANDARD_SLOT_LIMIT", 1)[1][:30]:
+        fail("standard slot limit should be 5")
+    else:
+        ok("standard slot limit constant = 5")
+    if "'standard' === $plan" not in lic:
+        fail("standard plan gate missing in crb_license_can")
+    else:
+        std_gate = lic.split("'standard' === $plan", 1)[1].split("'free' !== $plan", 1)[0]
+        if "CRB_LICENSE_STANDARD_FEED_LIMIT" not in std_gate or "ai_transform" not in std_gate:
+            fail("standard should gate feeds and block ai_transform")
+        else:
+            ok("standard gates create_feed/save and blocks ai_transform")
+    if "crb_license_standard_payment_url" not in lic:
+        fail("missing crb_license_standard_payment_url()")
+    else:
+        ok("standard payment URL hook present")
 
     view = read("admin/views/license-settings.php")
     if "test_run_ensure" not in view or "crb_license_is_authoritative_server" not in read("includes/functions-license.php"):

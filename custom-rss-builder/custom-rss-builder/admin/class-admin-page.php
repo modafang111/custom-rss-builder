@@ -964,7 +964,11 @@ class Custom_RSS_Builder_Admin_Page {
 			'import'           => array(
 				'enabled'             => $import_enabled,
 				'schedule'            => function_exists( 'crb_import_schedule_slug_from_hours' )
-					? crb_import_schedule_slug_from_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) )
+					? crb_import_schedule_slug_from_hours(
+						function_exists( 'crb_import_schedule_hours_from_request' )
+							? crb_import_schedule_hours_from_request()
+							: wp_unslash( $_POST['import_schedule_hours'] ?? 0 )
+					)
 					: 'off',
 				'post_status'         => sanitize_key( wp_unslash( $_POST['import_post_status'] ?? 'draft' ) ),
 				'post_type'           => sanitize_key( wp_unslash( $_POST['import_post_type'] ?? 'post' ) ),

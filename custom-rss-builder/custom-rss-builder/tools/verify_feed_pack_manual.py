@@ -86,13 +86,13 @@ def main() -> int:
 
     if "crb-fpack-pro-service" not in manual_php:
         fail("manual missing Pro setup service section")
-    elif "1,000" not in manual_php and "1000" not in manual_php:
-        fail("manual missing repeat pricing")
+    elif "1,100" not in manual_php and "1100" not in manual_php:
+        fail("manual missing repeat pricing (tax-included)")
     else:
         ok("manual documents Pro setup pricing")
 
-    if "show_pro_setup_panel" not in license_settings:
-        fail("license-settings missing Pro setup panel")
+    if "show_paid_setup_panel" not in license_settings:
+        fail("license-settings missing paid setup panel")
     elif "初回 1 フィード無料" not in read("includes/functions-license.php"):
         fail("plan comparison missing setup service row")
     else:

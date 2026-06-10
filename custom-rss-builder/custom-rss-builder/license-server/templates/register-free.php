@@ -36,7 +36,19 @@ $pro_url = function_exists( 'crb_ls_pro_payment_url' ) ? crb_ls_pro_payment_url(
 
 	<?php if ( '' !== $pro_url ) : ?>
 		<hr />
-		<h3><?php esc_html_e( 'Pro プラン（月額 3,000 円）', 'crb-license-server' ); ?></h3>
+		<h3>
+			<?php
+			if ( function_exists( 'crb_pro_monthly_price_label' ) ) {
+				printf(
+					/* translators: %s: monthly price label */
+					esc_html__( 'Pro プラン（%s）', 'crb-license-server' ),
+					esc_html( crb_pro_monthly_price_label() )
+				);
+			} else {
+				esc_html_e( 'Pro プラン（月額 3,300 円・税込）', 'crb-license-server' );
+			}
+			?>
+		</h3>
 		<p><?php esc_html_e( 'お申し込み後、Pro ライセンスキーをメールでお送りします。', 'crb-license-server' ); ?></p>
 		<p>
 			<a class="button" href="<?php echo esc_url( $pro_url ); ?>" target="_blank" rel="noopener noreferrer">

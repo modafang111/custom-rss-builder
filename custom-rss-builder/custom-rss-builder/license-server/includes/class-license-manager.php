@@ -34,7 +34,7 @@ class CRB_License_Server_License_Manager {
 
 	/**
 	 * @param string $email Email.
-	 * @param string $plan free|pro.
+	 * @param string $plan free|standard|pro.
 	 * @param array<string, mixed> $extra Extra columns.
 	 * @return array<string, mixed>|WP_Error
 	 */
@@ -43,7 +43,7 @@ class CRB_License_Server_License_Manager {
 
 		$email = sanitize_email( (string) $email );
 		$plan  = sanitize_key( (string) $plan );
-		if ( ! in_array( $plan, array( 'free', 'pro' ), true ) ) {
+		if ( ! in_array( $plan, array( 'free', 'standard', 'pro' ), true ) ) {
 			$plan = 'free';
 		}
 

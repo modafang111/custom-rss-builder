@@ -35,11 +35,13 @@ $show_server_config   = $is_local_server
 		&& function_exists( 'crb_license_client_needs_manual_server_config' )
 		&& crb_license_client_needs_manual_server_config()
 	);
-// クライアント: 無料＋利用可のとき Pro 申込を表示。サーバー開発用 ol は正本のみ。
-$pro_subscribe_url      = function_exists( 'crb_license_pro_payment_url' ) ? crb_license_pro_payment_url() : '';
-$show_pro_upgrade_panel = ( 'free' === $state['plan'] ) && $state['usable'];
-$show_client_pro_cta    = $is_client_screen && $show_pro_upgrade_panel && '' !== $pro_subscribe_url;
-$show_pro_setup_panel   = $is_client_screen && $state['usable'] && 'pro' === $state['plan'];
+// クライアント: 無料＋利用可のときスタンダード／Pro 申込を表示。サーバー開発用 ol は正本のみ。
+$pro_subscribe_url           = function_exists( 'crb_license_pro_payment_url' ) ? crb_license_pro_payment_url() : '';
+$standard_subscribe_url      = function_exists( 'crb_license_standard_payment_url' ) ? crb_license_standard_payment_url() : '';
+$show_pro_upgrade_panel      = ( 'free' === $state['plan'] ) && $state['usable'];
+$show_client_free_upgrade_ctas = $is_client_screen && $show_pro_upgrade_panel;
+$show_standard_to_pro_cta    = $is_client_screen && $state['usable'] && 'standard' === $state['plan'] && '' !== $pro_subscribe_url;
+$show_paid_setup_panel       = $is_client_screen && $state['usable'] && in_array( $state['plan'], array( 'standard', 'pro' ), true );
 $client_remote_base     = ( $is_client_screen && function_exists( 'crb_license_client_remote_base_url' ) )
 	? crb_license_client_remote_base_url()
 	: '';
@@ -63,7 +65,13 @@ $show_client_registration    = $is_client_screen && ! $state['usable'] && '' !==
 $crb_install_manual_url      = function_exists( 'crb_install_manual_page_url' ) ? crb_install_manual_page_url() : '';
 $crb_feed_pack_manual_url     = function_exists( 'crb_feed_pack_manual_page_url' ) ? crb_feed_pack_manual_page_url() : '';
 $feed_limit_label = (string) CRB_LICENSE_FREE_FEED_LIMIT;
-if ( $state['usable'] && 'pro' === $state['plan'] ) {
+if ( $state['usable'] && 'standard' === $state['plan'] ) {
+	$feed_limit_label = sprintf(
+		/* translators: %d: max feeds on standard plan */
+		__( '%d 件まで', 'custom-rss-builder' ),
+		defined( 'CRB_LICENSE_STANDARD_FEED_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_FEED_LIMIT : 3
+	);
+} elseif ( $state['usable'] && 'pro' === $state['plan'] ) {
 	$feed_limit_label = sprintf(
 		/* translators: %d: max feeds on pro plan */
 		__( '%d 件まで', 'custom-rss-builder' ),
@@ -281,6 +289,7 @@ if ( ! empty( $version_info['version'] ) ) {
 				<tr>
 					<th scope="col"><?php esc_html_e( '機能', 'custom-rss-builder' ); ?></th>
 					<th scope="col"><?php esc_html_e( '無料', 'custom-rss-builder' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'スタンダード', 'custom-rss-builder' ); ?></th>
 					<th scope="col"><?php esc_html_e( 'Pro', 'custom-rss-builder' ); ?></th>
 				</tr>
 			</thead>
@@ -289,34 +298,66 @@ if ( ! empty( $version_info['version'] ) ) {
 					<tr>
 						<td><?php echo esc_html( $row['label'] ); ?></td>
 						<td><?php echo esc_html( $row['free'] ); ?></td>
+						<td><?php echo esc_html( $row['standard'] ?? '' ); ?></td>
 						<td><?php echo esc_html( $row['pro'] ); ?></td>
 					</tr>
 				<?php endforeach; ?>
 			</tbody>
 		</table>
-		<p class="description"><?php esc_html_e( '無料と Pro の機能差は主に「フィード数」「スロット数」「クレジット表示」「AI テキスト変換（Pro・BYOK）」です。', 'custom-rss-builder' ); ?></p>
+		<p class="description"><?php esc_html_e( 'プラン差は主に「フィード数」「スロット数」「自動取り込み間隔」「クレジット表示」「AI テキスト変換（Pro・BYOK）」です。', 'custom-rss-builder' ); ?></p>
 	</div>
 	<?php endif; ?>
 
-	<?php if ( $show_client_pro_cta ) : ?>
-	<div class="crb-panel crb-panel--pro-cta">
-		<h2 class="crb-panel__title"><?php esc_html_e( 'Pro プランのご案内', 'custom-rss-builder' ); ?></h2>
+	<?php if ( $show_client_free_upgrade_ctas ) : ?>
+	<div class="crb-panel crb-panel--upgrade-cta">
+		<h2 class="crb-panel__title"><?php esc_html_e( '有料プランのご案内', 'custom-rss-builder' ); ?></h2>
+
+		<h3 class="crb-panel__subtitle"><?php esc_html_e( 'スタンダードプラン', 'custom-rss-builder' ); ?></h3>
+		<p>
+			<?php
+			printf(
+				/* translators: 1: standard slot range, 2: monthly price label, 3: max feeds */
+				esc_html__( 'フィード %3$d 件まで・スロット %1$s・自動取り込み 1 時間〜（%2$s）。', 'custom-rss-builder' ),
+				function_exists( 'crb_license_format_slot_range_text' )
+					? crb_license_format_slot_range_text( defined( 'CRB_LICENSE_STANDARD_SLOT_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_SLOT_LIMIT : 5 )
+					: '{%1%}〜{%5%}',
+				function_exists( 'crb_standard_monthly_price_label' ) ? crb_standard_monthly_price_label() : __( '月額 1,100 円（税込）', 'custom-rss-builder' ),
+				defined( 'CRB_LICENSE_STANDARD_FEED_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_FEED_LIMIT : 3
+			);
+			?>
+		</p>
+		<?php if ( '' !== $standard_subscribe_url ) : ?>
+		<p>
+			<a class="button button-secondary" href="<?php echo esc_url( $standard_subscribe_url ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( 'スタンダードを申し込む', 'custom-rss-builder' ); ?>
+			</a>
+		</p>
+		<?php else : ?>
+		<p class="description"><?php esc_html_e( 'スタンダードのお申し込み URL は準備中です。', 'custom-rss-builder' ); ?></p>
+		<?php endif; ?>
+		<p class="description">
+			<?php esc_html_e( 'お支払い後、スタンダード ライセンスキーをメールでお送りします。届いたキーを下のフォームに入力して「有効化」してください。', 'custom-rss-builder' ); ?>
+		</p>
+
+		<h3 class="crb-panel__subtitle"><?php esc_html_e( 'Pro プラン', 'custom-rss-builder' ); ?></h3>
 		<p>
 			<?php
 			printf(
 				/* translators: 1: max slot token e.g. {%20%}, 2: monthly price label, 3: max feeds */
-				esc_html__( 'フィード %3$d 件まで・スロット {%%1%%}〜%1$s が使える Pro プラン（%2$s）です。', 'custom-rss-builder' ),
+				esc_html__( 'フィード %3$d 件まで・スロット {%%1%%}〜%1$s・AI テキスト変換（%2$s）。', 'custom-rss-builder' ),
 				'{%' . ( function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20 ) . '%}',
 				function_exists( 'crb_pro_monthly_price_label' ) ? crb_pro_monthly_price_label() : __( '月額 3,300 円（税込）', 'custom-rss-builder' ),
 				defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10
 			);
 			?>
 		</p>
+		<?php if ( '' !== $pro_subscribe_url ) : ?>
 		<p>
 			<a class="button button-primary" href="<?php echo esc_url( $pro_subscribe_url ); ?>" target="_blank" rel="noopener noreferrer">
 				<?php esc_html_e( 'Pro を申し込む', 'custom-rss-builder' ); ?>
 			</a>
 		</p>
+		<?php endif; ?>
 		<p class="description">
 			<?php esc_html_e( 'お支払い後、Pro ライセンスキーをメールでお送りします。届いたキーを下のフォームに入力して「有効化」してください。', 'custom-rss-builder' ); ?>
 		</p>
@@ -324,7 +365,7 @@ if ( ! empty( $version_info['version'] ) ) {
 			<?php
 			printf(
 				/* translators: %s: repeat setup price label */
-				esc_html__( 'Pro 特典: 最初の 1 フィードの初期設定代行が 1 回無料です（2 回目以降 %s）。', 'custom-rss-builder' ),
+				esc_html__( 'スタンダード・Pro 共通: 最初の 1 フィードの初期設定代行が 1 回無料です（2 回目以降 %s）。', 'custom-rss-builder' ),
 				esc_html( function_exists( 'crb_pro_setup_repeat_price_label' ) ? crb_pro_setup_repeat_price_label() : __( '1,100 円（税込）／回', 'custom-rss-builder' ) )
 			);
 			?>
@@ -342,14 +383,37 @@ if ( ! empty( $version_info['version'] ) ) {
 			<?php endif; ?>
 		</p>
 	</div>
-	<?php elseif ( $show_pro_setup_panel ) : ?>
+	<?php elseif ( $show_standard_to_pro_cta ) : ?>
+	<div class="crb-panel crb-panel--pro-cta">
+		<h2 class="crb-panel__title"><?php esc_html_e( 'Pro へのアップグレード', 'custom-rss-builder' ); ?></h2>
+		<p>
+			<?php
+			printf(
+				/* translators: 1: max slot token, 2: monthly price label, 3: max feeds */
+				esc_html__( 'フィード %3$d 件まで・スロット {%%1%%}〜%1$s・AI テキスト変換が使える Pro プラン（%2$s）です。', 'custom-rss-builder' ),
+				'{%' . ( function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20 ) . '%}',
+				function_exists( 'crb_pro_monthly_price_label' ) ? crb_pro_monthly_price_label() : __( '月額 3,300 円（税込）', 'custom-rss-builder' ),
+				defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10
+			);
+			?>
+		</p>
+		<p>
+			<a class="button button-primary" href="<?php echo esc_url( $pro_subscribe_url ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( 'Pro を申し込む', 'custom-rss-builder' ); ?>
+			</a>
+		</p>
+		<p class="description">
+			<?php esc_html_e( 'お支払い後、Pro ライセンスキーをメールでお送りします。届いたキーを下のフォームに入力して「有効化」してください。', 'custom-rss-builder' ); ?>
+		</p>
+	</div>
+	<?php elseif ( $show_paid_setup_panel ) : ?>
 	<div class="crb-panel crb-panel--pro-setup">
-		<h2 class="crb-panel__title"><?php esc_html_e( 'Pro 初期設定代行', 'custom-rss-builder' ); ?></h2>
+		<h2 class="crb-panel__title"><?php esc_html_e( '初期設定代行', 'custom-rss-builder' ); ?></h2>
 		<p>
 			<?php esc_html_e( 'フィード設定（セレクタ・スロット等）を当方で作成し、設定パック（JSON）でお渡しします。', 'custom-rss-builder' ); ?>
 		</p>
 		<ul class="crb-license-steps">
-			<li><?php esc_html_e( '初回（Pro お申し込み後・最初の 1 フィード）: 無料', 'custom-rss-builder' ); ?></li>
+			<li><?php esc_html_e( '初回（有料プランお申し込み後・最初の 1 フィード）: 無料', 'custom-rss-builder' ); ?></li>
 			<li>
 				<?php
 				printf(

@@ -138,7 +138,9 @@ class CRB_License_Server_Admin {
 			'mail_download_url_free'    => isset( $_POST['mail_download_url_free'] ) ? esc_url_raw( wp_unslash( $_POST['mail_download_url_free'] ) ) : '',
 			'mail_download_password'    => isset( $_POST['mail_download_password'] ) ? sanitize_text_field( wp_unslash( $_POST['mail_download_password'] ) ) : '',
 			'mail_download_heading'     => isset( $_POST['mail_download_heading'] ) ? sanitize_text_field( wp_unslash( $_POST['mail_download_heading'] ) ) : '',
-			'mail_download_install_hint' => isset( $_POST['mail_download_install_hint'] ) ? sanitize_textarea_field( wp_unslash( $_POST['mail_download_install_hint'] ) ) : '',
+			'mail_download_install_hint'      => isset( $_POST['mail_download_install_hint'] ) ? sanitize_textarea_field( wp_unslash( $_POST['mail_download_install_hint'] ) ) : '',
+			'mail_setup_service_payment_url'  => isset( $_POST['mail_setup_service_payment_url'] ) ? esc_url_raw( wp_unslash( $_POST['mail_setup_service_payment_url'] ) ) : '',
+			'mail_setup_service_block'        => isset( $_POST['mail_setup_service_block'] ) ? sanitize_textarea_field( wp_unslash( $_POST['mail_setup_service_block'] ) ) : '',
 		);
 
 		crb_ls_update_settings( $patch );

@@ -448,6 +448,9 @@ function crb_demo_samples_install( $force = false ) {
 	if ( function_exists( 'crb_feed_pack_manual_install' ) ) {
 		crb_feed_pack_manual_install( true );
 	}
+	if ( function_exists( 'crb_sales_lp_install' ) ) {
+		crb_sales_lp_install( false );
+	}
 
 	$sales_content = crb_demo_samples_build_sales_page_content( $with_urls );
 	$sales_id      = crb_demo_samples_upsert_page(

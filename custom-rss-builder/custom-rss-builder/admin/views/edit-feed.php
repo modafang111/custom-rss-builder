@@ -297,6 +297,22 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 						);
 						?>
 					</p>
+				<?php elseif ( ! empty( $crb_license_state['usable'] ) && 'standard' === ( $crb_license_state['plan'] ?? '' ) ) : ?>
+					<p class="description">
+						<?php
+						$crb_standard_slot_max   = defined( 'CRB_LICENSE_STANDARD_SLOT_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_SLOT_LIMIT : 5;
+						$crb_standard_feed_limit = defined( 'CRB_LICENSE_STANDARD_FEED_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_FEED_LIMIT : 3;
+						$crb_standard_slot_range = function_exists( 'crb_license_format_slot_range_text' )
+							? crb_license_format_slot_range_text( $crb_standard_slot_max )
+							: (string) $crb_standard_slot_max;
+						printf(
+							/* translators: 1: standard slot range, 2: max feeds */
+							esc_html__( '現在のプラン（スタンダード）: スロット %1$s、フィード数 %2$d 件まで。', 'custom-rss-builder' ),
+							esc_html( $crb_standard_slot_range ),
+							$crb_standard_feed_limit
+						);
+						?>
+					</p>
 				<?php elseif ( ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' ) ) : ?>
 					<p class="description">
 						<?php
@@ -496,11 +512,12 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 		</p>
 	<?php endif; ?>
 	<?php
-	$crb_is_pro_usable = ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' );
+	$crb_is_paid_setup_usable = ! empty( $crb_license_state['usable'] )
+		&& in_array( (string) ( $crb_license_state['plan'] ?? '' ), array( 'standard', 'pro' ), true );
 	?>
-	<?php if ( $crb_is_pro_usable ) : ?>
+	<?php if ( $crb_is_paid_setup_usable ) : ?>
 		<p class="crb-feed-pack-pro-setup description">
-			<?php esc_html_e( 'Pro 初期設定代行: 最初の 1 フィードは無料。JSON を受け取ったら下の「設定をインポート」から反映できます。', 'custom-rss-builder' ); ?>
+			<?php esc_html_e( '初期設定代行: 最初の 1 フィードは無料。JSON を受け取ったら下の「設定をインポート」から反映できます。', 'custom-rss-builder' ); ?>
 			<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
 				<?php
 				echo ' ';

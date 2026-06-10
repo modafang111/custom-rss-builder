@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_FEED_PACK_MANUAL_VERSION', '2' );
+define( 'CRB_FEED_PACK_MANUAL_VERSION', '3' );
 define( 'CRB_FEED_PACK_MANUAL_OPTION_PAGE_ID', 'crb_feed_pack_manual_page_id' );
 
 /**
@@ -141,7 +141,7 @@ function crb_feed_pack_manual_build_page_content() {
 	$lines[] = '<h3>' . esc_html__( '料金', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<ul>';
 	$lines[] = '<li><strong>' . esc_html__( '初回', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '無料（Pro お申し込み特典・最初の 1 フィード・1 回限り）', 'custom-rss-builder' ) . '</li>';
-	$lines[] = '<li><strong>' . esc_html__( '2 回目以降', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '1,000 円（税別）／回（税込 1,100 円）', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li><strong>' . esc_html__( '2 回目以降', 'custom-rss-builder' ) . '</strong> — ' . esc_html( function_exists( 'crb_pro_setup_repeat_price_label' ) ? crb_pro_setup_repeat_price_label() : __( '1,100 円（税込）／回', 'custom-rss-builder' ) ) . '</li>';
 	$lines[] = '</ul>';
 	$lines[] = '<h3>' . esc_html__( '含まれる作業', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<ul>';
@@ -190,7 +190,13 @@ function crb_feed_pack_manual_build_page_content() {
 	$lines[] = '<h3>' . esc_html__( 'Q. インポートでライセンスや他フィードが消えますか？', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p>' . esc_html__( 'A. いいえ。インポートは開いている 1 件のフォームに反映するだけです。保存前は DB も更新されません。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. 初回無料の代行は何回まで？', 'custom-rss-builder' ) . '</h3>';
-	$lines[] = '<p>' . esc_html__( 'A. Pro お申し込み後、最初の 1 フィードにつき 1 回限り無料です。2 フィード目や設定の作り直し（2 回目以降）は 1,000 円（税別）／回となります。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<p>' . esc_html(
+		sprintf(
+			/* translators: %s: repeat setup price label */
+			__( 'A. Pro お申し込み後、最初の 1 フィードにつき 1 回限り無料です。2 フィード目や設定の作り直し（2 回目以降）は %s となります。', 'custom-rss-builder' ),
+			function_exists( 'crb_pro_setup_repeat_price_label' ) ? crb_pro_setup_repeat_price_label() : __( '1,100 円（税込）／回', 'custom-rss-builder' )
+		)
+	) . '</p>';
 
 	$lines[] = '<h2>' . esc_html__( '関連リンク', 'custom-rss-builder' ) . '</h2>';
 	$lines[] = '<ul class="crb-manual-index-list">';
