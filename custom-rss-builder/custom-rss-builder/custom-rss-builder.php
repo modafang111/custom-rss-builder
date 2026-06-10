@@ -38,7 +38,7 @@ define( 'CRB_VERSION', '0.9.0' );
 
 /** デプロイごとに更新（管理画面 JS/CSS のバージョン用） */
 
-define( 'CRB_BUILD_ID', '20260610t' );
+define( 'CRB_BUILD_ID', '20260610u' );
 
 define( 'CRB_PLUGIN_FILE', __FILE__ );
 

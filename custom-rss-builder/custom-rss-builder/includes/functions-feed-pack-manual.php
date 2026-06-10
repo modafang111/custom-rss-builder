@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_FEED_PACK_MANUAL_VERSION', '1' );
+define( 'CRB_FEED_PACK_MANUAL_VERSION', '2' );
 define( 'CRB_FEED_PACK_MANUAL_OPTION_PAGE_ID', 'crb_feed_pack_manual_page_id' );
 
 /**
@@ -81,7 +81,8 @@ function crb_feed_pack_manual_build_page_content() {
 	$lines[] = '<li><a href="#crb-fpack-excluded">' . esc_html__( 'JSON に含まれない項目', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-fpack-export">' . esc_html__( 'エクスポート手順', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-fpack-import">' . esc_html__( 'インポート手順', 'custom-rss-builder' ) . '</a></li>';
-	$lines[] = '<li><a href="#crb-fpack-concierge">' . esc_html__( 'Pro 初期設定の流れ（運用者向け）', 'custom-rss-builder' ) . '</a></li>';
+	$lines[] = '<li><a href="#crb-fpack-pro-service">' . esc_html__( 'Pro 初期設定代行', 'custom-rss-builder' ) . '</a></li>';
+	$lines[] = '<li><a href="#crb-fpack-concierge">' . esc_html__( '代行の作業手順（運用者向け）', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-fpack-faq">' . esc_html__( 'よくある質問', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '</ol>';
 	$lines[] = '</nav>';
@@ -135,7 +136,44 @@ function crb_feed_pack_manual_build_page_content() {
 	$lines[] = '</ol>';
 	$lines[] = '<p class="crb-ai-manual-note">' . esc_html__( 'インポート直後は DB は更新されません。保存するまで他のフィードやライセンスは変わりません。既存フィードを削除する必要はありません。', 'custom-rss-builder' ) . '</p>';
 
-	$lines[] = '<h2 id="crb-fpack-concierge">' . esc_html__( 'Pro 初期設定の流れ（運用者向け）', 'custom-rss-builder' ) . '</h2>';
+	$lines[] = '<h2 id="crb-fpack-pro-service">' . esc_html__( 'Pro 初期設定代行', 'custom-rss-builder' ) . '</h2>';
+	$lines[] = '<p>' . esc_html__( 'Pro プランでは、フィード設定パック（JSON）の作成と、お客様サイトへの反映支援を当方で代行できます。ご自身でセレクタを調べる時間を短縮したい方向けのオプションサービスです。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h3>' . esc_html__( '料金', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<ul>';
+	$lines[] = '<li><strong>' . esc_html__( '初回', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '無料（Pro お申し込み特典・最初の 1 フィード・1 回限り）', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li><strong>' . esc_html__( '2 回目以降', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '1,000 円（税別）／回（税込 1,100 円）', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '</ul>';
+	$lines[] = '<h3>' . esc_html__( '含まれる作業', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<ul>';
+	$lines[] = '<li>' . esc_html__( '対象 URL に合わせたフィード設定（範囲・1 件・スロット・投稿テンプレート）の作成', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li>' . esc_html__( '設定パック（JSON）のお渡しと、インポート〜プレビュー確認までのご案内', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '</ul>';
+	$lines[] = '<h3>' . esc_html__( '含まれない作業', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<ul>';
+	$lines[] = '<li>' . esc_html__( 'お客様 WordPress への管理者ログイン代行（原則、お客様操作または画面共有）', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li>' . esc_html__( '取り込み ON/OFF・スケジュール・カテゴリなど、設定パックに含まれない項目の設定', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li>' . esc_html__( '2 フィード目以降の初回無料（初回無料は Pro 契約ごとに 1 フィード 1 回のみ）', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '</ul>';
+	$lines[] = '<h3>' . esc_html__( 'お客様側の流れ', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<ol>';
+	$lines[] = '<li>' . esc_html__( 'Pro ライセンスキーを有効化する', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li>' . esc_html__( '対象 URL など必要情報を販売元へ連絡する', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li>' . esc_html__( '届いた JSON を「設定をインポート」→ プレビュー →「保存」', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '</ol>';
+	$contact_url = function_exists( 'crb_license_registration_portal_url' ) ? crb_license_registration_portal_url() : '';
+	if ( '' !== $contact_url ) {
+		$lines[] = '<p>' . wp_kses_post(
+			sprintf(
+				/* translators: %s: authority site URL */
+				__( '代行のお申し込み: <a href="%s" target="_blank" rel="noopener noreferrer">販売元サイト</a>からご連絡ください。', 'custom-rss-builder' ),
+				esc_url( $contact_url )
+			)
+		) . '</p>';
+	} else {
+		$lines[] = '<p class="crb-ai-manual-note">' . esc_html__( '代行のお申し込みは販売元までご連絡ください。', 'custom-rss-builder' ) . '</p>';
+	}
+
+	$lines[] = '<h2 id="crb-fpack-concierge">' . esc_html__( '代行の作業手順（運用者向け）', 'custom-rss-builder' ) . '</h2>';
 	$lines[] = '<ol>';
 	$lines[] = '<li>' . esc_html__( '検証環境または作業用サイトでフィードを組み、プレビューで問題ないことを確認する', 'custom-rss-builder' ) . '</li>';
 	$lines[] = '<li>' . esc_html__( '「設定をエクスポート」で JSON を取得する', 'custom-rss-builder' ) . '</li>';
@@ -151,6 +189,8 @@ function crb_feed_pack_manual_build_page_content() {
 	$lines[] = '<p>' . esc_html__( 'A. ファイルが壊れている、pack_version が古い／新しすぎる、feed オブジェクトがない場合に失敗します。正しいエクスポート JSON か確認してください。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. インポートでライセンスや他フィードが消えますか？', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p>' . esc_html__( 'A. いいえ。インポートは開いている 1 件のフォームに反映するだけです。保存前は DB も更新されません。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h3>' . esc_html__( 'Q. 初回無料の代行は何回まで？', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p>' . esc_html__( 'A. Pro お申し込み後、最初の 1 フィードにつき 1 回限り無料です。2 フィード目や設定の作り直し（2 回目以降）は 1,000 円（税別）／回となります。', 'custom-rss-builder' ) . '</p>';
 
 	$lines[] = '<h2>' . esc_html__( '関連リンク', 'custom-rss-builder' ) . '</h2>';
 	$lines[] = '<ul class="crb-manual-index-list">';

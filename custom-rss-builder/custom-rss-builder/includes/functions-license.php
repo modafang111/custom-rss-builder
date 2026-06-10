@@ -1354,6 +1354,11 @@ function crb_license_plan_comparison_rows() {
 			'free'  => '—',
 			'pro'   => __( '○（Gemini API キー要・BYOK）', 'custom-rss-builder' ),
 		),
+		array(
+			'label' => __( '初期設定代行', 'custom-rss-builder' ),
+			'free'  => '—',
+			'pro'   => __( '初回 1 フィード無料（2 回目以降 1,000 円税別／回）', 'custom-rss-builder' ),
+		),
 	);
 }
 

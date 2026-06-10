@@ -32,6 +32,7 @@ def main() -> int:
     install_php = read("includes/functions-install-manual.php")
     ls_settings = read("license-server/admin/views/settings.php")
     edit_feed = read("admin/views/edit-feed.php")
+    license_settings = read("admin/views/license-settings.php")
 
     if "functions-feed-pack-manual.php" not in main_php:
         fail("bootstrap must require functions-feed-pack-manual.php")
@@ -54,7 +55,7 @@ def main() -> int:
     else:
         ok("manual page slug defined")
 
-    for needle in ("crb-fpack-export", "crb-fpack-import", "pack_version"):
+    for needle in ("crb-fpack-export", "crb-fpack-import", "crb-fpack-pro-service", "pack_version"):
         if needle not in manual_php:
             fail(f"manual content missing {needle!r}")
             break
@@ -82,6 +83,20 @@ def main() -> int:
         fail("edit-feed.php missing crb-feed-pack-manual-link marker")
     else:
         ok("client edit-feed links to feed-pack manual")
+
+    if "crb-fpack-pro-service" not in manual_php:
+        fail("manual missing Pro setup service section")
+    elif "1,000" not in manual_php and "1000" not in manual_php:
+        fail("manual missing repeat pricing")
+    else:
+        ok("manual documents Pro setup pricing")
+
+    if "show_pro_setup_panel" not in license_settings:
+        fail("license-settings missing Pro setup panel")
+    elif "初回 1 フィード無料" not in read("includes/functions-license.php"):
+        fail("plan comparison missing setup service row")
+    else:
+        ok("license UI documents Pro setup service")
 
     m_build = re.search(r"define\s*\(\s*'CRB_BUILD_ID'\s*,\s*'([^']+)'\s*\)", main_php)
     if not m_build:

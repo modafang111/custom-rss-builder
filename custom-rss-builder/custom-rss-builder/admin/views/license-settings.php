@@ -39,6 +39,7 @@ $show_server_config   = $is_local_server
 $pro_subscribe_url      = function_exists( 'crb_license_pro_payment_url' ) ? crb_license_pro_payment_url() : '';
 $show_pro_upgrade_panel = ( 'free' === $state['plan'] ) && $state['usable'];
 $show_client_pro_cta    = $is_client_screen && $show_pro_upgrade_panel && '' !== $pro_subscribe_url;
+$show_pro_setup_panel   = $is_client_screen && $state['usable'] && 'pro' === $state['plan'];
 $client_remote_base     = ( $is_client_screen && function_exists( 'crb_license_client_remote_base_url' ) )
 	? crb_license_client_remote_base_url()
 	: '';
@@ -58,6 +59,7 @@ $show_plan_comparison        = ! empty( $comparison_rows );
 $registration_portal_url     = function_exists( 'crb_license_registration_portal_url' ) ? crb_license_registration_portal_url() : '';
 $show_client_registration    = $is_client_screen && ! $state['usable'] && '' !== $registration_portal_url;
 $crb_install_manual_url      = function_exists( 'crb_install_manual_page_url' ) ? crb_install_manual_page_url() : '';
+$crb_feed_pack_manual_url     = function_exists( 'crb_feed_pack_manual_page_url' ) ? crb_feed_pack_manual_page_url() : '';
 $feed_limit_label     = ( $state['usable'] && 'pro' === $state['plan'] )
 	? __( '無制限', 'custom-rss-builder' )
 	: (string) CRB_LICENSE_FREE_FEED_LIMIT;
@@ -309,6 +311,48 @@ if ( ! empty( $version_info['version'] ) ) {
 		<p class="description">
 			<?php esc_html_e( 'お支払い後、Pro ライセンスキーをメールでお送りします。届いたキーを下のフォームに入力して「有効化」してください。', 'custom-rss-builder' ); ?>
 		</p>
+		<p class="description">
+			<?php esc_html_e( 'Pro 特典: 最初の 1 フィードの初期設定代行が 1 回無料です（2 回目以降 1,000 円税別／回）。', 'custom-rss-builder' ); ?>
+			<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
+				<?php
+				echo ' ';
+				echo wp_kses_post(
+					sprintf(
+						/* translators: %s: feed pack manual URL */
+						__( '<a href="%s" target="_blank" rel="noopener noreferrer">詳細は手順ページ</a>', 'custom-rss-builder' ),
+						esc_url( $crb_feed_pack_manual_url . '#crb-fpack-pro-service' )
+					)
+				);
+				?>
+			<?php endif; ?>
+		</p>
+	</div>
+	<?php elseif ( $show_pro_setup_panel ) : ?>
+	<div class="crb-panel crb-panel--pro-setup">
+		<h2 class="crb-panel__title"><?php esc_html_e( 'Pro 初期設定代行', 'custom-rss-builder' ); ?></h2>
+		<p>
+			<?php esc_html_e( 'フィード設定（セレクタ・スロット等）を当方で作成し、設定パック（JSON）でお渡しします。', 'custom-rss-builder' ); ?>
+		</p>
+		<ul class="crb-license-steps">
+			<li><?php esc_html_e( '初回（Pro お申し込み後・最初の 1 フィード）: 無料', 'custom-rss-builder' ); ?></li>
+			<li><?php esc_html_e( '2 回目以降: 1,000 円（税別）／回（税込 1,100 円）', 'custom-rss-builder' ); ?></li>
+		</ul>
+		<p class="description">
+			<?php esc_html_e( 'お客様側: フィード編集の「設定をインポート」→ プレビュー →「保存」。', 'custom-rss-builder' ); ?>
+		</p>
+		<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
+		<p>
+			<a href="<?php echo esc_url( $crb_feed_pack_manual_url . '#crb-fpack-pro-service' ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( '代行の詳細・お申し込み（正本サイト）', 'custom-rss-builder' ); ?>
+			</a>
+		</p>
+		<?php elseif ( '' !== $registration_portal_url ) : ?>
+		<p>
+			<a href="<?php echo esc_url( $registration_portal_url ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( 'お申し込みは販売元サイトへ', 'custom-rss-builder' ); ?>
+			</a>
+		</p>
+		<?php endif; ?>
 	</div>
 	<?php elseif ( $show_pro_upgrade_panel && ! $is_client_screen ) : ?>
 	<div class="crb-panel">

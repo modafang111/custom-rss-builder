@@ -489,6 +489,26 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 			?>
 		</p>
 	<?php endif; ?>
+	<?php
+	$crb_is_pro_usable = ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' );
+	?>
+	<?php if ( $crb_is_pro_usable ) : ?>
+		<p class="crb-feed-pack-pro-setup description">
+			<?php esc_html_e( 'Pro 初期設定代行: 最初の 1 フィードは無料。JSON を受け取ったら下の「設定をインポート」から反映できます。', 'custom-rss-builder' ); ?>
+			<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
+				<?php
+				echo ' ';
+				echo wp_kses_post(
+					sprintf(
+						/* translators: %s: feed pack manual URL */
+						__( '<a href="%s" target="_blank" rel="noopener noreferrer">詳細</a>', 'custom-rss-builder' ),
+						esc_url( $crb_feed_pack_manual_url . '#crb-fpack-pro-service' )
+					)
+				);
+				?>
+			<?php endif; ?>
+		</p>
+	<?php endif; ?>
 	<p class="crb-feed-pack__actions">
 		<button type="button" class="button button-secondary" id="crb-import-feed-pack">
 			<?php esc_html_e( '設定をインポート', 'custom-rss-builder' ); ?>
