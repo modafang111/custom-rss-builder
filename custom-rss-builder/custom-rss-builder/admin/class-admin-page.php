@@ -19,8 +19,6 @@ class Custom_RSS_Builder_Admin_Page {
 	/** @var Custom_RSS_Builder_HTML_Fetcher */
 	private $html_fetcher;
 
-	/** @var Custom_RSS_Builder_HTML_Parser */
-	private $html_parser;
 
 	/** @var Custom_RSS_Builder_RSS_Generator */
 	private $rss_generator;
@@ -31,10 +29,9 @@ class Custom_RSS_Builder_Admin_Page {
 	/** @var array<string, mixed> */
 	private $preview_data = array();
 
-	public function __construct( $feed_manager, $html_fetcher, $html_parser, $rss_generator, $post_importer ) {
+	public function __construct( $feed_manager, $html_fetcher, $rss_generator, $post_importer ) {
 		$this->feed_manager  = $feed_manager;
 		$this->html_fetcher  = $html_fetcher;
-		$this->html_parser   = $html_parser;
 		$this->rss_generator = $rss_generator;
 		$this->post_importer = $post_importer;
 	}
@@ -45,6 +42,7 @@ class Custom_RSS_Builder_Admin_Page {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_crb_discover_elements', array( $this, 'ajax_discover_elements' ) );
 		add_action( 'wp_ajax_crb_discover_scope_html', array( $this, 'ajax_discover_scope_html' ) );
+		add_action( 'wp_ajax_crb_admin_feed', array( $this, 'ajax_admin_feed' ) );
 	}
 
 	public function add_admin_menu() {
@@ -69,11 +67,6 @@ class Custom_RSS_Builder_Admin_Page {
 		$ver      = CRB_VERSION . '.' . $build . '.' . (string) filemtime( $css_path );
 		$ver_js   = CRB_VERSION . '.' . $build . '.' . (string) filemtime( $js_path );
 
-		// 管理画面は変更確認が最優先なので、当面は毎回キャッシュを破棄する。
-		$nocache_suffix = '.' . (string) time();
-		$ver           .= $nocache_suffix;
-		$ver_js        .= $nocache_suffix;
-
 		wp_enqueue_style(
 			'custom-rss-builder-admin',
 			CRB_PLUGIN_URL . 'assets/css/admin.css',
@@ -91,33 +84,409 @@ class Custom_RSS_Builder_Admin_Page {
 			'custom-rss-builder-admin',
 			'crbAdmin',
 			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'crb_discover_elements' ),
-				'i18n'    => array(
+				'ajaxUrl'   => admin_url( 'admin-ajax.php' ),
+				'nonce'     => wp_create_nonce( 'crb_discover_elements' ),
+				'formNonce'  => wp_create_nonce( 'crb_admin_action' ),
+				'editBaseUrl' => add_query_arg(
+					array(
+						'page'   => self::MENU_SLUG,
+						'action' => 'edit',
+					),
+					admin_url( 'admin.php' )
+				),
+				'version'       => CRB_VERSION,
+				'build'         => defined( 'CRB_BUILD_ID' ) ? CRB_BUILD_ID : '',
+				'licensePlan'   => crb_license_get_state()['plan'],
+				'licenseUsable' => crb_license_get_state()['usable'],
+				'maxSlotCount'  => function_exists( 'crb_license_get_record_slot_count' )
+					? crb_license_get_record_slot_count()
+					: ( defined( 'CRB_RECORD_SLOT_COUNT' ) ? (int) CRB_RECORD_SLOT_COUNT : 20 ),
+				'demoSamples'   => function_exists( 'crb_get_demo_sample_patterns' )
+					? crb_get_demo_sample_patterns()
+					: array(),
+				'demoSamplesIndex' => function_exists( 'crb_demo_samples_index_url' )
+					? crb_demo_samples_index_url()
+					: '',
+				'i18n'          => array(
+					'applySamplePreset' => __( '選択したパターンを入力欄に反映', 'custom-rss-builder' ),
+					'fillSampleUrl'     => __( '対象 URL にサンプルページを入れる', 'custom-rss-builder' ),
+					'chooseSample'      => __( 'パターンを選んでください。', 'custom-rss-builder' ),
 					'discovering'  => __( '調べています…', 'custom-rss-builder' ),
 					'discoverFail' => __( '要素の取得に失敗しました。', 'custom-rss-builder' ),
 					'needUrl'      => __( '対象 URL を入力してください。', 'custom-rss-builder' ),
 					'empty'        => __( '一致する要素がありませんでした。範囲セレクタを空にするか見直してください。', 'custom-rss-builder' ),
-					'roleSlotIndex' => crb_discover_role_slot_indexes(),
-					'sampleRecordsLead' => __( '抽出プレビュー（先頭%d件）', 'custom-rss-builder' ),
-					'scopePreviewLead'  => __( 'この範囲での試し読み', 'custom-rss-builder' ),
+					'colCount'          => __( '回数', 'custom-rss-builder' ),
 					'colSlot'           => __( 'スロット', 'custom-rss-builder' ),
 					'colExtract'        => __( '取り方', 'custom-rss-builder' ),
 					'colValue'          => __( '取れた値', 'custom-rss-builder' ),
-					'discoverHint'      => __( '④の設定とは別です。④へ反映する場合は「おすすめを一括入力」を使ってください。', 'custom-rss-builder' ),
-					'noScopePreview'    => __( 'この範囲では取れる候補がありませんでした。', 'custom-rss-builder' ),
-					'noValueInScope'    => __( '（範囲内で値なし）', 'custom-rss-builder' ),
-					'imageAutoDetect'   => __( '（1件ブロック内の画像を自動検出）', 'custom-rss-builder' ),
-					'recordSuffix' => __( '件目', 'custom-rss-builder' ),
-					'applySuggested' => __( 'おすすめを一括入力', 'custom-rss-builder' ),
+					'discoverInScope'   => __( '取れる値を一覧表示（範囲内）', 'custom-rss-builder' ),
+					'discoverPage'      => __( '取れる値を一覧表示', 'custom-rss-builder' ),
+					'discoverScopeHtml' => __( '範囲の HTML を確認', 'custom-rss-builder' ),
+					'scopeHtmlNeedsScope'   => __( '「一覧の場所」が空欄のときは使えません（省略可の欄です）', 'custom-rss-builder' ),
+					'scopeHtmlPreviewLead'  => __( '範囲の HTML プレビュー', 'custom-rss-builder' ),
 					'extractText'    => __( 'テキスト', 'custom-rss-builder' ),
 					'extractHtml'    => __( 'HTML', 'custom-rss-builder' ),
 					'extractSrc'     => __( '画像URL', 'custom-rss-builder' ),
 					'extractHref'    => __( 'リンクURL', 'custom-rss-builder' ),
 					'valueHint'    => __( '取得する値', 'custom-rss-builder' ),
+					'extractCandidatesLead' => __( '範囲内で取れる値の一覧（CSS セレクタ・取り方・値）。どれをスロットに使うかは値を見て選んでください。', 'custom-rss-builder' ),
+					'extractCandidatesCount' => __( '%d 件', 'custom-rss-builder' ),
+					'extractCandidatesSlotHint' => sprintf(
+						/* translators: %s: max slot token e.g. {%20%} */
+						__( '回数は範囲内の一致件数です。スロット列で {%%1%%}〜%s を選ぶと、④の欄にセレクタと取り方が入ります。', 'custom-rss-builder' ),
+						'{%' . ( function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20 ) . '%}'
+					),
+					'saving'           => __( '保存しています…', 'custom-rss-builder' ),
+					'previewing'       => __( 'プレビューしています…', 'custom-rss-builder' ),
+					'working'          => __( '処理しています…', 'custom-rss-builder' ),
+					'requestFail'      => __( '通信に失敗しました。', 'custom-rss-builder' ),
+					'exportFeed'       => __( '設定をエクスポート', 'custom-rss-builder' ),
+					'exporting'        => __( 'エクスポートしています…', 'custom-rss-builder' ),
+					'exportDone'       => __( 'JSON ファイルをダウンロードしました。', 'custom-rss-builder' ),
+					'exportFail'       => __( 'エクスポートに失敗しました。', 'custom-rss-builder' ),
+					'exportNeedSave'   => __( '保存済みのフィードのみエクスポートできます。先に保存してください。', 'custom-rss-builder' ),
+					'importFeed'       => __( '設定をインポート', 'custom-rss-builder' ),
+					'importDone'       => __( 'フォームに反映しました。保存で確定します。', 'custom-rss-builder' ),
+					'importFail'       => __( 'インポートに失敗しました。', 'custom-rss-builder' ),
+					'importInvalidFile' => __( 'JSON ファイルを選択してください。', 'custom-rss-builder' ),
 				),
 			)
 		);
+	}
+
+	/**
+	 * AJAX: 保存・プレビュー・取り込み（ページリロードなし）。
+	 */
+	public function ajax_admin_feed() {
+		check_ajax_referer( 'crb_admin_action', 'nonce' );
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => __( '権限がありません。', 'custom-rss-builder' ) ) );
+		}
+
+		crb_license_prepare_request();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$action  = isset( $_POST['crb_action'] ) ? sanitize_key( wp_unslash( $_POST['crb_action'] ) ) : '';
+		$feed_id = isset( $_POST['feed_id'] ) ? (int) $_POST['feed_id'] : 0;
+
+		switch ( $action ) {
+			case 'save':
+				$this->ajax_handle_save( $feed_id );
+				break;
+			case 'preview':
+			case 'preview_posts':
+				$this->ajax_handle_preview( $feed_id );
+				break;
+			case 'import_posts':
+				$this->ajax_handle_import( $feed_id );
+				break;
+			case 'export':
+				$this->ajax_handle_export( $feed_id );
+				break;
+			case 'import_pack':
+				$this->ajax_handle_import_pack();
+				break;
+			default:
+				wp_send_json_error( array( 'message' => __( '不明な操作です。', 'custom-rss-builder' ) ) );
+		}
+	}
+
+	/**
+	 * @param int $feed_id Feed ID.
+	 */
+	/**
+	 * @param string $feature License feature slug.
+	 * @return WP_Error|null
+	 */
+	private function license_gate_error( $feature ) {
+		if ( crb_license_can( $feature ) ) {
+			return null;
+		}
+		return new WP_Error( 'crb_license_denied', crb_license_denied_message( $feature ) );
+	}
+
+	private function ajax_handle_save( $feed_id ) {
+		$is_new = $feed_id <= 0 || ! $this->feed_manager->get_feed( $feed_id );
+		if ( $is_new ) {
+			$gate = $this->license_gate_error( 'create_feed' );
+			if ( is_wp_error( $gate ) ) {
+				wp_send_json_error( array( 'message' => $gate->get_error_message() ) );
+			}
+		}
+		$gate = $this->license_gate_error( 'save' );
+		if ( is_wp_error( $gate ) ) {
+			wp_send_json_error( array( 'message' => $gate->get_error_message() ) );
+		}
+
+		$data = $this->collect_feed_data_from_post( $feed_id );
+		if ( '' === $data['name'] || '' === $data['url'] ) {
+			wp_send_json_error( array( 'message' => __( '必須項目を入力してください。', 'custom-rss-builder' ) ) );
+		}
+		if ( 'css' === crb_get_feed_extraction_mode( $data ) ) {
+			$css = $data['css'] ?? array();
+			if ( ! function_exists( 'crb_css_config_has_extraction_path' ) || ! crb_css_config_has_extraction_path( $css ) ) {
+				$message = function_exists( 'crb_css_missing_extraction_path_message' )
+					? crb_css_missing_extraction_path_message()
+					: __( '抽出の指定がありません。', 'custom-rss-builder' );
+				wp_send_json_error( array( 'message' => $message ) );
+			}
+		}
+
+		$new_id = $this->feed_manager->save_feed( $data );
+		wp_send_json_success(
+			array(
+				'feed_id'      => (int) $new_id,
+				'message'      => __( 'フィードを保存しました。', 'custom-rss-builder' ),
+				'message_type' => 'success',
+				'edit_url'     => add_query_arg(
+					array(
+						'page'    => self::MENU_SLUG,
+						'action'  => 'edit',
+						'feed_id' => (int) $new_id,
+					),
+					admin_url( 'admin.php' )
+				),
+			)
+		);
+	}
+
+	/**
+	 * @param int $feed_id Feed ID.
+	 */
+	private function ajax_handle_preview( $feed_id ) {
+		$preview_data = $this->build_preview_data_from_post( $feed_id );
+		$data         = $this->collect_feed_data_from_post( $feed_id );
+		$fragments    = $this->render_preview_html_fragments( $preview_data, $data );
+
+		wp_send_json_success(
+			array(
+				'extract_html' => $fragments['extract_html'],
+				'import_html'  => $fragments['import_html'],
+			)
+		);
+	}
+
+	/**
+	 * @param int $feed_id Feed ID.
+	 */
+	private function ajax_handle_import( $feed_id ) {
+		$gate = $this->license_gate_error( 'import_posts' );
+		if ( is_wp_error( $gate ) ) {
+			wp_send_json_error( array( 'message' => $gate->get_error_message() ) );
+		}
+		if ( $feed_id <= 0 ) {
+			wp_send_json_error( array( 'message' => __( '先にフィードを保存してください。', 'custom-rss-builder' ) ) );
+		}
+		$data = $this->collect_feed_data_from_post( $feed_id );
+		$this->feed_manager->save_feed( $data );
+
+		$result = $this->post_importer->import_feed( $feed_id, 'manual' );
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+		}
+
+		$detail = sprintf(
+			/* translators: 1: created count, 2: skipped count */
+			__( '新規 %1$d 件 / スキップ %2$d 件', 'custom-rss-builder' ),
+			(int) $result['created'],
+			(int) $result['skipped']
+		);
+		if ( ! empty( $result['errors'] ) ) {
+			$detail .= ' / ' . implode( '; ', array_map( 'strval', $result['errors'] ) );
+		}
+
+		$message_type = ! empty( $result['errors'] ) ? 'warning' : 'success';
+		$message      = ! empty( $result['errors'] )
+			? __( '投稿への取り込みが一部完了しました。詳細は下記を確認してください。', 'custom-rss-builder' )
+			: __( '投稿への取り込みが完了しました。', 'custom-rss-builder' );
+
+		wp_send_json_success(
+			array(
+				'message'      => $message,
+				'message_type' => $message_type,
+				'detail'       => $detail,
+			)
+		);
+	}
+
+	/**
+	 * 保存済みフィードの設定パックを JSON で返す（DB の内容。フォーム未保存分は含めない）。
+	 *
+	 * @param int $feed_id Feed ID.
+	 */
+	private function ajax_handle_export( $feed_id ) {
+		$feed_id = (int) $feed_id;
+		if ( $feed_id <= 0 ) {
+			wp_send_json_error(
+				array( 'message' => __( '保存済みのフィードのみエクスポートできます。先に保存してください。', 'custom-rss-builder' ) )
+			);
+		}
+
+		$feed = $this->feed_manager->get_feed( $feed_id );
+		if ( ! is_array( $feed ) ) {
+			wp_send_json_error( array( 'message' => __( 'フィードが見つかりません。', 'custom-rss-builder' ) ) );
+		}
+
+		if ( ! function_exists( 'crb_export_feed_pack' ) ) {
+			wp_send_json_error( array( 'message' => __( 'エクスポート機能が利用できません。', 'custom-rss-builder' ) ) );
+		}
+
+		$pack = crb_export_feed_pack( $feed );
+		if ( is_wp_error( $pack ) ) {
+			wp_send_json_error( array( 'message' => $pack->get_error_message() ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'message'      => __( 'JSON ファイルをダウンロードしました。', 'custom-rss-builder' ),
+				'message_type' => 'success',
+				'pack'         => $pack,
+				'pack_json'    => crb_feed_pack_to_json( $pack ),
+				'filename'     => crb_feed_pack_export_filename( $feed, $feed_id ),
+			)
+		);
+	}
+
+	/**
+	 * JSON 設定パックを検証し、フォーム反映用フィールドを返す（DB には書かない）。
+	 */
+	private function ajax_handle_import_pack() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$json = isset( $_POST['pack_json'] ) ? wp_unslash( $_POST['pack_json'] ) : '';
+		if ( ! is_string( $json ) || '' === trim( $json ) ) {
+			wp_send_json_error( array( 'message' => __( 'JSON が空です。', 'custom-rss-builder' ) ) );
+		}
+
+		if ( ! function_exists( 'crb_parse_feed_pack_json' ) || ! function_exists( 'crb_feed_pack_to_form_fields' ) ) {
+			wp_send_json_error( array( 'message' => __( 'インポート機能が利用できません。', 'custom-rss-builder' ) ) );
+		}
+
+		$pack = crb_parse_feed_pack_json( $json );
+		if ( is_wp_error( $pack ) ) {
+			wp_send_json_error( array( 'message' => $pack->get_error_message() ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'message'      => __( 'フォームに反映しました。保存で確定します。', 'custom-rss-builder' ),
+				'message_type' => 'success',
+				'fields'       => crb_feed_pack_to_form_fields( $pack ),
+			)
+		);
+	}
+
+	/**
+	 * @param array<string, mixed> $preview_data Preview payload.
+	 * @param array<string, mixed> $feed_data    Feed config from POST.
+	 * @return array{extract_html: string, import_html: string}
+	 */
+	private function render_preview_html_fragments( array $preview_data, array $feed_data ) {
+		$feed         = $feed_data;
+		$has_rows     = ! empty( $preview_data['rows'] ) && is_array( $preview_data['rows'] );
+		$has_import   = isset( $preview_data['import_posts'] );
+		$extract_html = '';
+		$import_html  = '';
+
+		ob_start();
+		if ( ! empty( $preview_data['error'] ) ) {
+			echo '<div class="notice notice-error inline"><p>' . esc_html( (string) $preview_data['error'] ) . '</p></div>';
+		} elseif ( $has_rows ) {
+			include CRB_PLUGIN_DIR . 'admin/views/preview-results.php';
+		} else {
+			echo '<div class="notice notice-warning inline"><p>';
+			esc_html_e( '抽出できた件数が 0 です。対象 URL・1件ブロック・各スロットのセレクタを確認してください。', 'custom-rss-builder' );
+			echo '</p></div>';
+			$preview_data['rows'] = array();
+			include CRB_PLUGIN_DIR . 'admin/views/preview-results.php';
+		}
+		$extract_html = (string) ob_get_clean();
+
+		ob_start();
+		if ( $has_import ) {
+			include CRB_PLUGIN_DIR . 'admin/views/import-preview-results.php';
+		} else {
+			echo '<p class="crb-panel__placeholder">';
+			esc_html_e( '「プレビュー（全件）」または「投稿プレビュー」を実行すると、取り込み後の表示がここに出ます。', 'custom-rss-builder' );
+			echo '</p>';
+		}
+		$import_html = (string) ob_get_clean();
+
+		return array(
+			'extract_html' => $extract_html,
+			'import_html'  => $import_html,
+		);
+	}
+
+	/**
+	 * @param int $feed_id Feed ID from POST.
+	 * @return array<string, mixed>
+	 */
+	private function build_preview_data_from_post( $feed_id ) {
+		$data         = $this->collect_feed_data_from_post( $feed_id );
+		$preview_data = array();
+
+		$html = $this->html_fetcher->fetch_html(
+			$data['url'],
+			array(
+				'context' => 'admin',
+				'feed'    => $data,
+			)
+		);
+		if ( is_wp_error( $html ) ) {
+			return array( 'error' => $html->get_error_message() );
+		}
+
+		$parsed = crb_extract_items_from_html( $html, $data );
+
+		if ( is_wp_error( $parsed ) ) {
+			$preview_data['error'] = $parsed->get_error_message();
+			return $preview_data;
+		}
+
+		if ( function_exists( 'crb_ai_transform_rows_result' ) ) {
+			$ai_result = crb_ai_transform_rows_result( $data, $parsed, 'preview' );
+			$parsed    = is_array( $ai_result['rows'] ?? null ) ? $ai_result['rows'] : $parsed;
+			if ( ! empty( $ai_result['applied'] ) ) {
+				$preview_data['ai_applied'] = true;
+			}
+			if ( ! empty( $ai_result['errors'] ) ) {
+				$preview_data['ai_errors'] = $ai_result['errors'];
+			}
+			if ( ! empty( $ai_result['warnings'] ) ) {
+				$preview_data['ai_warnings'] = $ai_result['warnings'];
+			}
+			if ( ! empty( $ai_result['stats'] ) && is_array( $ai_result['stats'] ) ) {
+				$preview_data['ai_stats'] = $ai_result['stats'];
+				if ( function_exists( 'crb_ai_transform_stats_summary' ) ) {
+					$summary = crb_ai_transform_stats_summary( $ai_result['stats'] );
+					if ( '' !== $summary ) {
+						$preview_data['ai_summary'] = $summary;
+					}
+				}
+			}
+		}
+
+		$preview_data['rows']           = $parsed;
+		$preview_data['preview_limit']  = defined( 'CRB_RECORD_PREVIEW_LIMIT' ) ? (int) CRB_RECORD_PREVIEW_LIMIT : 3;
+		$preview_data['plugin_version'] = CRB_VERSION;
+		if ( 'css' === crb_get_feed_extraction_mode( $data ) ) {
+			$preview_data['extraction_mode'] = 'css';
+		} elseif ( '' !== trim( (string) ( $data['scope_template'] ?? '' ) ) ) {
+			$preview_data['scope_applied'] = true;
+		}
+
+		$feed_for_preview = $data;
+
+		if ( crb_license_can( 'preview_posts' ) ) {
+			$preview_data['import_posts'] = $this->post_importer->preview_import_items( $feed_for_preview, $parsed, 5 );
+		} else {
+			$preview_data['import_posts'] = array(
+				'error' => crb_license_denied_message( 'preview_posts' ),
+			);
+		}
+
+		return $preview_data;
 	}
 
 	/**
@@ -126,8 +495,18 @@ class Custom_RSS_Builder_Admin_Page {
 	public function ajax_discover_elements() {
 		check_ajax_referer( 'crb_discover_elements', 'nonce' );
 
+		if ( function_exists( 'crb_discover_prepare_ajax' ) ) {
+			crb_discover_prepare_ajax();
+		}
+
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( '権限がありません。', 'custom-rss-builder' ) ), 403 );
+		}
+
+		crb_license_prepare_request();
+		$gate = $this->license_gate_error( 'discover' );
+		if ( is_wp_error( $gate ) ) {
+			wp_send_json_error( array( 'message' => $gate->get_error_message() ) );
 		}
 
 		$url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
@@ -137,14 +516,14 @@ class Custom_RSS_Builder_Admin_Page {
 
 		$scope = isset( $_POST['scope_selector'] ) ? crb_sanitize_css_selector( wp_unslash( $_POST['scope_selector'] ) ) : '';
 
-		$html = $this->html_fetcher->fetch_html( $url, true );
+		$html = $this->html_fetcher->fetch_html( $url );
 		if ( is_wp_error( $html ) ) {
 			wp_send_json_error( array( 'message' => $html->get_error_message() ) );
 		}
 
 		$item_sel  = isset( $_POST['item_selector'] ) ? crb_sanitize_css_selector( wp_unslash( $_POST['item_selector'] ) ) : '';
-		$discovery = new Custom_RSS_Builder_Element_Discovery();
-		$result    = $discovery->discover( $html, $scope, $item_sel );
+		$discovery = new Custom_RSS_Builder_Element_Discovery( true );
+		$result    = $discovery->discover( $html, $scope, $item_sel, 1, $url );
 		if ( is_wp_error( $result ) ) {
 			wp_send_json_error( array( 'message' => $result->get_error_message() ) );
 		}
@@ -154,30 +533,19 @@ class Custom_RSS_Builder_Admin_Page {
 			$result['suggested_slots'] = $suggested;
 		}
 
-		$scope_preview = crb_build_discover_scope_preview( $html, $scope, $item_sel, $result['groups'] ?? array(), $url );
+		$scope_preview = crb_build_discover_scope_preview( $html, $scope, $item_sel, $result['groups'] ?? array(), $url, true );
 		$result['scope_preview']   = $scope_preview;
 		$result['scope_slot_rows'] = $scope_preview['rows'] ?? array();
 
-		$discover_config = crb_css_config_from_discover_suggested( $scope, $item_sel, $suggested );
-		$has_discover_sel = '' !== trim( (string) ( $discover_config['link_selector'] ?? '' ) );
-		if ( ! $has_discover_sel ) {
-			foreach ( crb_extra_slot_storage_map() as $index => $meta ) {
-				if ( '' !== trim( (string) ( $discover_config[ $meta['config_key'] ] ?? '' ) ) ) {
-					$has_discover_sel = true;
-					break;
-				}
-			}
+		$candidates = crb_build_extract_candidates( $html, $scope, $item_sel, $url, true );
+		if ( is_wp_error( $candidates ) ) {
+			$result['extract_candidates_error'] = $candidates->get_error_message();
+			$result['item_selector_error']      = $candidates->get_error_message();
+		} else {
+			$result['extract_candidates'] = $candidates;
 		}
-
-		if ( $has_discover_sel ) {
-			$extractor = new Custom_RSS_Builder_Css_Extractor();
-			$limit     = defined( 'CRB_RECORD_PREVIEW_LIMIT' ) ? (int) CRB_RECORD_PREVIEW_LIMIT : 3;
-			$records   = $extractor->extract_preview_in_scope( $html, $discover_config, $url, $limit );
-			if ( ! is_wp_error( $records ) && ! empty( $records ) ) {
-				$result['sample_records'] = array_slice( crb_normalize_extract_rows_to_slots( $records ), 0, $limit );
-				$result['sample_preview_limit'] = $limit;
-				$result['slot_schema']          = crb_get_record_slot_schema_for_json( $discover_config );
-			}
+		if ( ! empty( $scope_preview['item_selector_error'] ) ) {
+			$result['item_selector_error'] = (string) $scope_preview['item_selector_error'];
 		}
 
 		wp_send_json_success( $result );
@@ -189,8 +557,18 @@ class Custom_RSS_Builder_Admin_Page {
 	public function ajax_discover_scope_html() {
 		check_ajax_referer( 'crb_discover_elements', 'nonce' );
 
+		if ( function_exists( 'crb_discover_prepare_ajax' ) ) {
+			crb_discover_prepare_ajax();
+		}
+
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => __( '権限がありません。', 'custom-rss-builder' ) ), 403 );
+		}
+
+		crb_license_prepare_request();
+		$gate = $this->license_gate_error( 'discover' );
+		if ( is_wp_error( $gate ) ) {
+			wp_send_json_error( array( 'message' => $gate->get_error_message() ) );
 		}
 
 		$url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
@@ -200,66 +578,56 @@ class Custom_RSS_Builder_Admin_Page {
 
 		$scope = isset( $_POST['scope_selector'] ) ? crb_sanitize_css_selector( wp_unslash( $_POST['scope_selector'] ) ) : '';
 
-		$html = $this->html_fetcher->fetch_html( $url, true );
+		$html = $this->html_fetcher->fetch_html( $url );
 		if ( is_wp_error( $html ) ) {
 			wp_send_json_error( array( 'message' => $html->get_error_message() ) );
 		}
 
-		if ( ! class_exists( 'DOMDocument' ) ) {
-			wp_send_json_error( array( 'message' => __( 'DOM 拡張が利用できません。', 'custom-rss-builder' ) ), 500 );
+		$dom = crb_scope_dom_load( $html );
+		if ( is_wp_error( $dom ) ) {
+			wp_send_json_error( array( 'message' => $dom->get_error_message() ) );
 		}
 
-		$dom = new DOMDocument();
-		libxml_use_internal_errors( true );
-		$wrapped = '<?xml encoding="utf-8" ?><div id="crb-root">' . (string) $html . '</div>';
-		$loaded  = $dom->loadHTML(
-			mb_convert_encoding( $wrapped, 'HTML-ENTITIES', 'UTF-8' ),
-			LIBXML_NOWARNING | LIBXML_NOERROR
-		);
-		libxml_clear_errors();
-
-		if ( ! $loaded || ! $dom->getElementById( 'crb-root' ) ) {
-			wp_send_json_error( array( 'message' => __( 'HTML の解析に失敗しました。', 'custom-rss-builder' ) ) );
+		$root = crb_dom_parse_root( $dom );
+		if ( is_wp_error( $root ) ) {
+			wp_send_json_error( array( 'message' => $root->get_error_message() ) );
 		}
 
 		$xpath = new DOMXPath( $dom );
-		$root  = $dom->documentElement; // <div id="crb-root">
 
-		// 範囲が空ならトップ（解析後の root）を返す。
+		// 範囲が空なら crb-root 全体を返す。
 		if ( '' === trim( (string) $scope ) ) {
 			$scope_node_html = (string) $dom->saveHTML( $root );
 			wp_send_json_success(
 				array(
-					'scope_selector'  => '',
-					'scope_label'     => __( 'ページ全体', 'custom-rss-builder' ),
+					'scope_selector'    => '',
+					'scope_label'       => __( 'ページ全体', 'custom-rss-builder' ),
 					'scope_match_count' => 1,
-					'scope_html'      => $scope_node_html,
+					'scope_html'        => $scope_node_html,
 				)
 			);
 		}
 
-		$query = crb_css_to_xpath( $scope );
-		if ( is_wp_error( $query ) ) {
+		if ( is_wp_error( crb_css_to_xpath( $scope ) ) ) {
 			wp_send_json_error( array( 'message' => __( '範囲セレクタが不正です。', 'custom-rss-builder' ) ) );
 		}
 
-		$nodes = $xpath->query( $query, $root );
-		if ( false === $nodes || 0 === $nodes->length ) {
+		$scope_el = crb_scope_resolve_element( $xpath, $root, $scope );
+		if ( ! ( $scope_el instanceof DOMElement ) ) {
+			$message     = crb_scope_explain_miss( $html, $url, $scope );
+			$suggestions = crb_scope_suggestions_for_url( $url, $xpath, $root );
 			wp_send_json_error(
 				array(
-					'message'          => __( '範囲セレクタに一致する要素がありません。', 'custom-rss-builder' ),
-					'scope_selector'  => $scope,
-					'scope_match_count' => 0,
+					'message'            => $message,
+					'scope_selector'     => $scope,
+					'scope_match_count'  => 0,
+					'scope_suggestions'  => $suggestions,
 				)
 			);
 		}
 
-		$node = $nodes->item( 0 );
-		if ( ! $node instanceof DOMElement ) {
-			wp_send_json_error( array( 'message' => __( '範囲の HTML を抽出できませんでした。', 'custom-rss-builder' ) ) );
-		}
-
-		$scope_node_html = (string) $dom->saveHTML( $node );
+		$match_count     = count( crb_scope_query_elements( $xpath, $root, $scope ) );
+		$scope_node_html = (string) $dom->saveHTML( $scope_el );
 
 		$max_chars = 120000;
 		$is_trunc   = false;
@@ -276,7 +644,7 @@ class Custom_RSS_Builder_Admin_Page {
 			array(
 				'scope_selector'     => $scope,
 				'scope_label'        => trim( (string) $scope ),
-				'scope_match_count'  => (int) $nodes->length,
+				'scope_match_count'  => $match_count,
 				'scope_html'         => $scope_node_html,
 				'scope_truncated'   => $is_trunc,
 			)
@@ -287,6 +655,8 @@ class Custom_RSS_Builder_Admin_Page {
 		if ( ! is_admin() || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
+
+		crb_license_prepare_request();
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ( empty( $_POST['crb_action'] ) || empty( $_POST['crb_nonce'] ) ) {
@@ -310,10 +680,7 @@ class Custom_RSS_Builder_Admin_Page {
 				break;
 			case 'preview':
 			case 'preview_posts':
-				$this->handle_preview();
-				break;
-			case 'refresh':
-				$this->handle_refresh( $feed_id );
+				$this->handle_preview_posts();
 				break;
 			case 'import_posts':
 				$this->handle_import_posts( $feed_id );
@@ -329,6 +696,8 @@ class Custom_RSS_Builder_Admin_Page {
 			return;
 		}
 
+		crb_license_prepare_request();
+
 		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
 		$feed   = null;
 
@@ -340,7 +709,7 @@ class Custom_RSS_Builder_Admin_Page {
 		}
 
 		echo '<div class="wrap crb-admin-wrap">';
-		echo '<h1>' . esc_html__( 'Custom RSS Builder', 'custom-rss-builder' ) . '</h1>';
+		$this->render_admin_page_header();
 
 		$this->render_admin_notices();
 
@@ -350,6 +719,46 @@ class Custom_RSS_Builder_Admin_Page {
 		} else {
 			$feeds = $this->feed_manager->get_feeds();
 			include CRB_PLUGIN_DIR . 'admin/views/settings-page.php';
+		}
+
+		echo '</div>';
+	}
+
+	private function render_admin_page_header() {
+		$info  = crb_get_plugin_version_info();
+		$ver   = (string) $info['version'];
+		$build = (string) $info['build'];
+
+		echo '<div class="crb-admin-header">';
+		echo '<h1>';
+		echo esc_html__( 'Custom RSS Builder', 'custom-rss-builder' );
+		if ( '' !== $ver ) {
+			printf(
+				' <small class="crb-version-inline">%s</small>',
+				esc_html(
+					sprintf(
+						/* translators: %s: version number */
+						__( 'バージョン %s', 'custom-rss-builder' ),
+						$ver
+					)
+				)
+			);
+		}
+		echo '</h1>';
+
+		if ( '' !== $ver ) {
+			$line = 'v' . $ver;
+			if ( '' !== $build ) {
+				$line .= ' · ' . sprintf(
+					/* translators: %s: build id */
+					__( 'ビルド %s', 'custom-rss-builder' ),
+					$build
+				);
+			}
+			printf(
+				'<div class="notice notice-info inline crb-version-notice"><p><strong>%s</strong></p></div>',
+				esc_html( $line )
+			);
 		}
 
 		echo '</div>';
@@ -365,7 +774,6 @@ class Custom_RSS_Builder_Admin_Page {
 		$map  = array(
 			'saved'          => array( 'success', __( 'フィードを保存しました。', 'custom-rss-builder' ) ),
 			'deleted'        => array( 'success', __( 'フィードを削除しました。', 'custom-rss-builder' ) ),
-			'refreshed'      => array( 'success', __( 'HTMLキャッシュを更新しました。', 'custom-rss-builder' ) ),
 			'import_ok'      => array( 'success', __( '投稿への取り込みが完了しました。', 'custom-rss-builder' ) ),
 			'import_partial' => array( 'warning', __( '投稿への取り込みが一部完了しました。詳細は下記を確認してください。', 'custom-rss-builder' ) ),
 			'import_error'   => array( 'error', __( '投稿への取り込みに失敗しました。', 'custom-rss-builder' ) ),
@@ -387,14 +795,31 @@ class Custom_RSS_Builder_Admin_Page {
 	}
 
 	private function handle_save( $feed_id ) {
+		crb_license_prepare_request();
+
+		$is_new = $feed_id <= 0 || ! $this->feed_manager->get_feed( $feed_id );
+		if ( $is_new ) {
+			$gate = $this->license_gate_error( 'create_feed' );
+			if ( is_wp_error( $gate ) ) {
+				wp_die( esc_html( $gate->get_error_message() ) );
+			}
+		}
+		$gate = $this->license_gate_error( 'save' );
+		if ( is_wp_error( $gate ) ) {
+			wp_die( esc_html( $gate->get_error_message() ) );
+		}
+
 		$data = $this->collect_feed_data_from_post( $feed_id );
 		if ( '' === $data['name'] || '' === $data['url'] ) {
 			wp_die( esc_html__( '必須項目を入力してください。', 'custom-rss-builder' ) );
 		}
 		if ( 'css' === crb_get_feed_extraction_mode( $data ) ) {
 			$css = $data['css'] ?? array();
-			if ( '' === trim( (string) ( $css['item_selector'] ?? '' ) ) && '' === trim( (string) ( $css['link_selector'] ?? '' ) ) ) {
-				wp_die( esc_html__( '1件ブロックまたは {%2} の CSS セレクタを指定してください。', 'custom-rss-builder' ) );
+			if ( ! function_exists( 'crb_css_config_has_extraction_path' ) || ! crb_css_config_has_extraction_path( $css ) ) {
+				$message = function_exists( 'crb_css_missing_extraction_path_message' )
+					? crb_css_missing_extraction_path_message()
+					: __( '抽出の指定がありません。', 'custom-rss-builder' );
+				wp_die( esc_html( $message ) );
 			}
 		}
 		if ( 'template' === crb_get_feed_extraction_mode( $data ) && '' === trim( (string) ( $data['template'] ?? '' ) ) ) {
@@ -432,27 +857,10 @@ class Custom_RSS_Builder_Admin_Page {
 		exit;
 	}
 
-	private function handle_refresh( $feed_id ) {
-		$feed = $this->feed_manager->get_feed( $feed_id );
-		if ( null === $feed ) {
-			wp_die( esc_html__( 'フィードが見つかりません。', 'custom-rss-builder' ) );
-		}
-		$this->html_fetcher->fetch_html( $feed['url'], true );
-		wp_safe_redirect(
-			add_query_arg(
-				array(
-					'page'        => self::MENU_SLUG,
-					'action'      => 'edit',
-					'feed_id'     => $feed_id,
-					'crb_message' => 'refreshed',
-				),
-				admin_url( 'admin.php' )
-			)
-		);
-		exit;
-	}
-
 	private function handle_import_posts( $feed_id ) {
+		if ( ! crb_license_can( 'import_posts' ) ) {
+			wp_die( esc_html( crb_license_denied_message( 'import_posts' ) ) );
+		}
 		if ( $feed_id <= 0 ) {
 			wp_die( esc_html__( 'フィードが見つかりません。', 'custom-rss-builder' ) );
 		}
@@ -460,7 +868,7 @@ class Custom_RSS_Builder_Admin_Page {
 		$data = $this->collect_feed_data_from_post( $feed_id );
 		$this->feed_manager->save_feed( $data );
 
-		$result = $this->post_importer->import_feed( $feed_id, true );
+		$result = $this->post_importer->import_feed( $feed_id, 'manual' );
 		if ( is_wp_error( $result ) ) {
 			wp_safe_redirect(
 				add_query_arg(
@@ -504,40 +912,10 @@ class Custom_RSS_Builder_Admin_Page {
 		exit;
 	}
 
-	private function handle_preview() {
-		$data = $this->collect_feed_data_from_post( isset( $_POST['feed_id'] ) ? (int) $_POST['feed_id'] : 0 );
-		$html = $this->html_fetcher->fetch_html( $data['url'], true );
-		if ( is_wp_error( $html ) ) {
-			$this->preview_data = array( 'error' => $html->get_error_message() );
-			return;
-		}
-
-		$this->preview_data = array(
-			'html_snippet' => mb_substr( $html, 0, 2000 ) . ( mb_strlen( $html ) > 2000 ? '...' : '' ),
-		);
-
-		$parsed = crb_extract_items_from_html( $html, $data );
-		if ( is_wp_error( $parsed ) ) {
-			$this->preview_data['error'] = $parsed->get_error_message();
-			return;
-		}
-
-		$this->preview_data['rows']          = $parsed;
-		$this->preview_data['preview_limit'] = defined( 'CRB_RECORD_PREVIEW_LIMIT' ) ? (int) CRB_RECORD_PREVIEW_LIMIT : 3;
-		$this->preview_data['plugin_version'] = CRB_VERSION;
-		if ( 'css' === crb_get_feed_extraction_mode( $data ) ) {
-			$this->preview_data['extraction_mode'] = 'css';
-		} elseif ( '' !== trim( (string) ( $data['scope_template'] ?? '' ) ) ) {
-			$this->preview_data['scope_applied'] = true;
-		}
-
-		$feed_for_preview = array(
-			'url'     => $data['url'],
-			'mapping' => $data['mapping'],
-			'import'  => $data['import'],
-		);
-
-		$this->preview_data['import_posts'] = $this->post_importer->preview_import_items( $feed_for_preview, $parsed, 5 );
+	private function handle_preview_posts() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$feed_id            = isset( $_POST['feed_id'] ) ? (int) $_POST['feed_id'] : 0;
+		$this->preview_data = $this->build_preview_data_from_post( $feed_id );
 	}
 
 	/**
@@ -547,68 +925,60 @@ class Custom_RSS_Builder_Admin_Page {
 	private function collect_feed_data_from_post( $feed_id ) {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$import_enabled = ! empty( $_POST['import_enabled'] );
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$append_source = ! empty( $_POST['import_append_source'] );
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$extraction_mode = sanitize_key( wp_unslash( $_POST['extraction_mode'] ?? 'css' ) );
-		if ( ! in_array( $extraction_mode, array( 'template', 'css' ), true ) ) {
-			$extraction_mode = 'css';
-		}
+		$mapping_defaults = crb_default_rss_mapping();
 
-		$css_raw = array(
-			'scope_selector'        => isset( $_POST['css_scope_selector'] ) ? wp_unslash( $_POST['css_scope_selector'] ) : '',
-			'item_selector'         => isset( $_POST['css_item_selector'] ) ? wp_unslash( $_POST['css_item_selector'] ) : '',
-			'link_selector'         => isset( $_POST['css_link_selector'] ) ? wp_unslash( $_POST['css_link_selector'] ) : '',
-			'title_mode'            => isset( $_POST['css_title_mode'] ) ? wp_unslash( $_POST['css_title_mode'] ) : 'attr',
-			'title_attr'            => isset( $_POST['css_title_attr'] ) ? wp_unslash( $_POST['css_title_attr'] ) : 'title',
-			'title_selector'        => isset( $_POST['css_title_selector'] ) ? wp_unslash( $_POST['css_title_selector'] ) : '',
-			'image_selector'        => isset( $_POST['css_image_selector'] ) ? wp_unslash( $_POST['css_image_selector'] ) : '',
-			'author_selector'       => isset( $_POST['css_author_selector'] ) ? wp_unslash( $_POST['css_author_selector'] ) : '',
-			'review_title_selector' => isset( $_POST['css_review_title_selector'] ) ? wp_unslash( $_POST['css_review_title_selector'] ) : '',
-			'summary_selector'      => isset( $_POST['css_summary_selector'] ) ? wp_unslash( $_POST['css_summary_selector'] ) : '',
-			'category_selector'     => isset( $_POST['css_category_selector'] ) ? wp_unslash( $_POST['css_category_selector'] ) : '',
-			'review_body_selector'  => isset( $_POST['css_review_body_selector'] ) ? wp_unslash( $_POST['css_review_body_selector'] ) : '',
-			'slot_selector_9'       => isset( $_POST['css_slot_selector_9'] ) ? wp_unslash( $_POST['css_slot_selector_9'] ) : '',
-			'slot_selector_10'      => isset( $_POST['css_slot_selector_10'] ) ? wp_unslash( $_POST['css_slot_selector_10'] ) : '',
-			'slot_selector_11'      => isset( $_POST['css_slot_selector_11'] ) ? wp_unslash( $_POST['css_slot_selector_11'] ) : '',
-			'slot_selector_12'      => isset( $_POST['css_slot_selector_12'] ) ? wp_unslash( $_POST['css_slot_selector_12'] ) : '',
-			'slot_mode_3'           => isset( $_POST['css_slot_mode_3'] ) ? wp_unslash( $_POST['css_slot_mode_3'] ) : '',
-			'slot_mode_4'           => isset( $_POST['css_slot_mode_4'] ) ? wp_unslash( $_POST['css_slot_mode_4'] ) : '',
-			'slot_mode_5'           => isset( $_POST['css_slot_mode_5'] ) ? wp_unslash( $_POST['css_slot_mode_5'] ) : '',
-			'slot_mode_6'           => isset( $_POST['css_slot_mode_6'] ) ? wp_unslash( $_POST['css_slot_mode_6'] ) : '',
-			'slot_mode_7'           => isset( $_POST['css_slot_mode_7'] ) ? wp_unslash( $_POST['css_slot_mode_7'] ) : '',
-			'slot_mode_8'           => isset( $_POST['css_slot_mode_8'] ) ? wp_unslash( $_POST['css_slot_mode_8'] ) : '',
-			'slot_mode_9'           => isset( $_POST['css_slot_mode_9'] ) ? wp_unslash( $_POST['css_slot_mode_9'] ) : '',
-			'slot_mode_10'          => isset( $_POST['css_slot_mode_10'] ) ? wp_unslash( $_POST['css_slot_mode_10'] ) : '',
-			'slot_mode_11'          => isset( $_POST['css_slot_mode_11'] ) ? wp_unslash( $_POST['css_slot_mode_11'] ) : '',
-			'slot_mode_12'          => isset( $_POST['css_slot_mode_12'] ) ? wp_unslash( $_POST['css_slot_mode_12'] ) : '',
+		$css_raw = array_merge(
+			array(
+				'scope_selector' => isset( $_POST['css_scope_selector'] ) ? wp_unslash( $_POST['css_scope_selector'] ) : '',
+				'item_selector'  => isset( $_POST['css_item_selector'] ) ? wp_unslash( $_POST['css_item_selector'] ) : '',
+				'link_selector'  => isset( $_POST['css_link_selector'] ) ? wp_unslash( $_POST['css_link_selector'] ) : '',
+				'title_mode'     => isset( $_POST['css_title_mode'] ) ? wp_unslash( $_POST['css_title_mode'] ) : 'attr',
+				'title_attr'     => isset( $_POST['css_title_attr'] ) ? wp_unslash( $_POST['css_title_attr'] ) : 'title',
+				'title_selector' => isset( $_POST['css_title_selector'] ) ? wp_unslash( $_POST['css_title_selector'] ) : '',
+			),
+			function_exists( 'crb_collect_extra_slot_fields_from_post' ) ? crb_collect_extra_slot_fields_from_post() : array()
 		);
 
-		return array(
+		$data = array(
 			'id'               => $feed_id,
 			'name'             => sanitize_text_field( wp_unslash( $_POST['name'] ?? '' ) ),
 			'url'              => esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) ),
-			'extraction_mode'  => $extraction_mode,
+			'extraction_mode'  => 'css',
 			'css'              => crb_sanitize_css_config( $css_raw ),
 			'scope_template'   => crb_get_template_from_post( 'scope_template' ),
 			'template'         => crb_get_template_from_post( 'template' ),
-			'mapping'  => array(
-				'link'        => (int) ( $_POST['map_link'] ?? 0 ),
-				'title'       => (int) ( $_POST['map_title'] ?? 1 ),
-				'description' => (int) ( $_POST['map_description'] ?? 2 ),
-				'date'        => (int) ( $_POST['map_date'] ?? 3 ),
+			'mapping'          => array(
+				'link'        => (int) ( $_POST['map_link'] ?? $mapping_defaults['link'] ),
+				'title'       => (int) ( $_POST['map_title'] ?? $mapping_defaults['title'] ),
+				'description' => (int) ( $_POST['map_description'] ?? $mapping_defaults['description'] ),
+				'date'        => (int) ( $_POST['map_date'] ?? $mapping_defaults['date'] ),
 			),
-			'import'   => array(
+			'link_rewrite'     => function_exists( 'crb_collect_link_rewrite_from_request' )
+				? crb_collect_link_rewrite_from_request()
+				: array(),
+			'ai'               => function_exists( 'crb_collect_ai_transform_from_request' )
+				? crb_collect_ai_transform_from_request()
+				: array(),
+			'import'           => array(
 				'enabled'             => $import_enabled,
+				'schedule'            => function_exists( 'crb_import_schedule_slug_from_hours' )
+					? crb_import_schedule_slug_from_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) )
+					: 'off',
 				'post_status'         => sanitize_key( wp_unslash( $_POST['import_post_status'] ?? 'draft' ) ),
 				'post_type'           => sanitize_key( wp_unslash( $_POST['import_post_type'] ?? 'post' ) ),
 				'post_title_template' => crb_get_import_template_from_post( 'import_post_title_template' ),
 				'content_template'    => crb_get_import_template_from_post( 'import_content_template' ),
-				'append_source'       => $append_source,
+				'append_source'       => false,
 				'category_id'         => (int) ( $_POST['import_category_id'] ?? 0 ),
+				'tag_ids'             => function_exists( 'crb_import_tag_ids_from_request' )
+					? crb_import_tag_ids_from_request( $_POST['import_tag_id'] ?? 0 )
+					: array(),
 				'author_id'           => (int) ( $_POST['import_author_id'] ?? 0 ),
 			),
 		);
+
+		return crb_license_apply_feed_limits( $data );
 	}
 }

@@ -32,7 +32,51 @@ function crb_get_template_from_post( $field = 'template' ) {
 function crb_get_import_template_from_post( $field = 'import_content_template' ) {
 	// phpcs:ignore WordPress.Security.NonceVerification.Missing
 	$value = isset( $_POST[ $field ] ) ? wp_unslash( $_POST[ $field ] ) : '';
+	if ( 'import_content_template' === $field ) {
+		return crb_sanitize_import_content_template( $value );
+	}
 	return crb_sanitize_template( $value );
+}
+
+/**
+ * 旧バージョンが自動注入したバンドル済みインポートテンプレートか。
+ *
+ * @param string $template Raw template.
+ * @return bool
+ */
+function crb_is_bundled_import_content_preset( $template ) {
+	if ( ! function_exists( 'crb_preset_review_import_template' ) ) {
+		return false;
+	}
+	return crb_sanitize_template( (string) $template ) === crb_preset_review_import_template();
+}
+
+/**
+ * 管理画面表示用。バンドル済みプリセットは空として扱う（自動注入の残骸を消す）。
+ *
+ * @param string $template Stored template.
+ * @return string
+ */
+function crb_import_content_template_for_ui( $template ) {
+	$template = crb_sanitize_template( (string) $template );
+	if ( crb_is_bundled_import_content_preset( $template ) ) {
+		return '';
+	}
+	return $template;
+}
+
+/**
+ * 保存用。バンドル済みプリセットは保存しない。
+ *
+ * @param string $template Raw template.
+ * @return string
+ */
+function crb_sanitize_import_content_template( $template ) {
+	$template = crb_sanitize_template( (string) $template );
+	if ( crb_is_bundled_import_content_preset( $template ) ) {
+		return '';
+	}
+	return $template;
 }
 
 /**
@@ -69,6 +113,21 @@ function crb_get_import_secret() {
 }
 
 /**
+ * 管理画面表示用のプラグインバージョン情報。
+ *
+ * @return array{version: string, build: string}
+ */
+function crb_get_plugin_version_info() {
+	return array(
+		'version' => defined( 'CRB_VERSION' ) ? (string) CRB_VERSION : '',
+		'build'   => defined( 'CRB_BUILD_ID' ) ? (string) CRB_BUILD_ID : '',
+	);
+}
+
+/**
+ * OS cron 用の取り込み URL。
+ *
+ * @param int $feed_id Feed ID.
  * @return string
  */
 function crb_get_import_cron_url( $feed_id ) {

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Custom RSS Builder — 練習用サンプル一覧</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 52em; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+    h1 { font-size: 1.35rem; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f0f0f0; }
+    code { font-size: 12px; }
+    .note { color: #444; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>Custom RSS Builder — 練習用サンプル（正本サーバー）</h1>
+  <p class="note">正本サーバー（123789.jp）では、これらの HTML を <strong>WordPress 固定ページ</strong>（販売ページの子ページ）として公開します。静的ファイル（この index.html）はインストール用のソースです。</p>
+  <table>
+    <thead>
+      <tr>
+        <th>パターン</th>
+        <th>ページ</th>
+        <th>一覧の場所</th>
+        <th>1件ぶん</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1 — div が並ぶ</td>
+        <td><a href="01-simple-div.html">01-simple-div.html</a></td>
+        <td><em>（空欄）</em></td>
+        <td><code>.crb-sample-news-item</code></td>
+      </tr>
+      <tr>
+        <td>2 — 箱 + 記事</td>
+        <td><a href="02-list-wrapper.html">02-list-wrapper.html</a></td>
+        <td><code>.crb-sample-list</code></td>
+        <td><code>.crb-sample-item</code></td>
+      </tr>
+      <tr>
+        <td>3 — ul / li</td>
+        <td><a href="03-ul-li.html">03-ul-li.html</a></td>
+        <td><code>ul.crb-sample-ul</code></td>
+        <td><code>li.crb-sample-li</code></td>
+      </tr>
+      <tr>
+        <td>4 — 入れ子</td>
+        <td><a href="04-nested-feed.html">04-nested-feed.html</a></td>
+        <td><code>.crb-sample-feed</code></td>
+        <td><code>.crb-sample-feed_list_item</code></td>
+      </tr>
+      <tr>
+        <td>5 — table</td>
+        <td><a href="05-table-rows.html">05-table-rows.html</a></td>
+        <td><code>table.crb-sample-table</code></td>
+        <td><code>tbody tr</code></td>
+      </tr>
+    </tbody>
+  </table>
+  <p class="note">公開 URL の例: <code>…/crb-practice-samples/</code>（販売・練習トップ）、<code>…/crb-practice-samples/crb-sample-simple-div/</code>（各パターン）。クライアントのフィード編集では「選択したパターンを反映」→「対象 URL にサンプルページを入れる」が簡単です。</p>
+</body>
+</html>

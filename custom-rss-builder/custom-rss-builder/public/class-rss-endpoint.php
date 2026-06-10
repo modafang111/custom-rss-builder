@@ -13,13 +13,11 @@ class Custom_RSS_Builder_RSS_Endpoint {
 
 	private $feed_manager;
 	private $html_fetcher;
-	private $html_parser;
 	private $rss_generator;
 
-	public function __construct( $feed_manager, $html_fetcher, $html_parser, $rss_generator ) {
+	public function __construct( $feed_manager, $html_fetcher, $rss_generator ) {
 		$this->feed_manager  = $feed_manager;
 		$this->html_fetcher  = $html_fetcher;
-		$this->html_parser   = $html_parser;
 		$this->rss_generator = $rss_generator;
 	}
 
@@ -48,6 +46,16 @@ class Custom_RSS_Builder_RSS_Endpoint {
 			return;
 		}
 
+		if ( function_exists( 'crb_license_ensure_active' ) ) {
+			crb_license_ensure_active();
+		}
+		if ( function_exists( 'crb_license_can' ) && ! crb_license_can( 'rss' ) ) {
+			status_header( 403 );
+			nocache_headers();
+			echo esc_html__( 'ライセンスが有効ではありません。', 'custom-rss-builder' );
+			exit;
+		}
+
 		$feed = $this->feed_manager->get_feed( $feed_id );
 		if ( null === $feed ) {
 			status_header( 404 );
@@ -70,6 +78,10 @@ class Custom_RSS_Builder_RSS_Endpoint {
 			nocache_headers();
 			echo esc_html( $parsed->get_error_message() );
 			exit;
+		}
+
+		if ( function_exists( 'crb_ai_transform_rows' ) ) {
+			$parsed = crb_ai_transform_rows( $feed, $parsed, 'rss' );
 		}
 
 		$xml = $this->rss_generator->generate_rss( $feed, $parsed );

@@ -20,6 +20,16 @@ class Custom_RSS_Builder_Element_Discovery {
 	/** @var int テキスト／ブロック候補の最低一致件数（要素調べるでは 1）。 */
 	private $min_block_repeat = 1;
 
+	/** @var bool 要素探索 AJAX 向け軽量 DOM（crb_discover_dom_load）。 */
+	private $lightweight_dom = false;
+
+	/**
+	 * @param bool $lightweight_dom 要素探索専用 DOM 経路を使う（管理画面 AJAX のみ true 推奨）。
+	 */
+	public function __construct( $lightweight_dom = false ) {
+		$this->lightweight_dom = (bool) $lightweight_dom;
+	}
+
 	/**
 	 * @param string $html           HTML.
 	 * @param string $scope_selector Optional CSS scope.
@@ -27,24 +37,30 @@ class Custom_RSS_Builder_Element_Discovery {
 	 * @param int    $min_block_repeat 候補に必要な最低一致件数（既定 1＝1件範囲でも取得）。
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function discover( $html, $scope_selector = '', $item_selector = '', $min_block_repeat = 1 ) {
+	public function discover( $html, $scope_selector = '', $item_selector = '', $min_block_repeat = 1, $page_url = '' ) {
 		$this->min_block_repeat = max( 1, (int) $min_block_repeat );
 		$dom = $this->load_dom( $html );
 		if ( is_wp_error( $dom ) ) {
 			return $dom;
 		}
 
-		$xpath = new DOMXPath( $dom );
-		$root  = $dom->documentElement;
-		$scope = $this->query_first( $xpath, $scope_selector, $root );
-		if ( '' !== trim( $scope_selector ) && ! $scope ) {
-			return new WP_Error(
-				'crb_discover_scope',
-				__( '範囲の CSS セレクタに一致する要素が見つかりませんでした。', 'custom-rss-builder' )
-			);
+		$root = crb_dom_parse_root( $dom );
+		if ( is_wp_error( $root ) ) {
+			return $root;
 		}
 
-		$context = $scope ? $scope : $root;
+		$xpath          = new DOMXPath( $dom );
+		$scope_selector = trim( (string) $scope_selector );
+		if ( $this->lightweight_dom && function_exists( 'crb_discover_resolve_scope' ) ) {
+			$scope_el = crb_discover_resolve_scope( $xpath, $root, $scope_selector );
+		} else {
+			$scope_el = crb_resolve_scope_element( $xpath, $root, $scope_selector );
+		}
+		if ( '' !== $scope_selector && ! ( $scope_el instanceof DOMElement ) ) {
+			$message = crb_scope_miss_message( $html, $page_url, $scope_selector, $xpath, $root );
+			return new WP_Error( 'crb_scope_miss', $message );
+		}
+		$context = ( $scope_el instanceof DOMElement ) ? $scope_el : $root;
 
 		$groups = array_merge(
 			$this->collect_link_groups( $xpath, $context ),
@@ -96,24 +112,13 @@ class Custom_RSS_Builder_Element_Discovery {
 	 * @return DOMDocument|WP_Error
 	 */
 	private function load_dom( $html ) {
-		if ( ! class_exists( 'DOMDocument' ) ) {
-			return new WP_Error( 'crb_dom_missing', __( 'DOM 拡張が利用できません。', 'custom-rss-builder' ) );
+		if ( $this->lightweight_dom && function_exists( 'crb_discover_dom_load' ) ) {
+			return crb_discover_dom_load( $html );
 		}
-
-		$dom = new DOMDocument();
-		libxml_use_internal_errors( true );
-		$wrapped = '<?xml encoding="utf-8" ?><div id="crb-root">' . (string) $html . '</div>';
-		$loaded  = $dom->loadHTML(
-			mb_convert_encoding( $wrapped, 'HTML-ENTITIES', 'UTF-8' ),
-			LIBXML_NOWARNING | LIBXML_NOERROR
-		);
-		libxml_clear_errors();
-
-		if ( ! $loaded || ! $dom->getElementById( 'crb-root' ) ) {
-			return new WP_Error( 'crb_dom_parse', __( 'HTML の解析に失敗しました。', 'custom-rss-builder' ) );
+		if ( function_exists( 'crb_dom_load_html' ) ) {
+			return crb_dom_load_html( $html );
 		}
-
-		return $dom;
+		return new WP_Error( 'crb_dom_missing', __( 'DOM 拡張が利用できません。', 'custom-rss-builder' ) );
 	}
 
 	/**
@@ -131,8 +136,8 @@ class Custom_RSS_Builder_Element_Discovery {
 		if ( is_wp_error( $query ) ) {
 			return null;
 		}
-		$nodes = $xpath->query( $query, $context );
-		if ( false === $nodes || 0 === $nodes->length ) {
+		$nodes = crb_xpath_query( $xpath, $query, $context );
+		if ( null === $nodes || 0 === $nodes->length ) {
 			return null;
 		}
 		$node = $nodes->item( 0 );
@@ -153,8 +158,7 @@ class Custom_RSS_Builder_Element_Discovery {
 		if ( is_wp_error( $query ) ) {
 			return 0;
 		}
-		$nodes = $xpath->query( $query, $context );
-		return ( false === $nodes ) ? 0 : (int) $nodes->length;
+		return crb_dom_node_list_length( crb_xpath_query( $xpath, $query, $context ) );
 	}
 
 	/**
@@ -163,9 +167,9 @@ class Custom_RSS_Builder_Element_Discovery {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private function collect_link_groups( DOMXPath $xpath, DOMElement $context ) {
-		$nodes   = $xpath->query( './/a[@href]', $context );
 		$buckets = array();
-		if ( false === $nodes ) {
+		$nodes   = crb_xpath_query( $xpath, './/a[@href]', $context );
+		if ( null === $nodes ) {
 			return array();
 		}
 
@@ -256,9 +260,9 @@ class Custom_RSS_Builder_Element_Discovery {
 	 * @return array<int, array<string, mixed>>
 	 */
 	private function collect_image_groups( DOMXPath $xpath, DOMElement $context ) {
-		$nodes   = $xpath->query( './/img[@src or @data-src or @data-original or @data-lazy-src] | .//picture//img | .//picture//source[@srcset]', $context );
 		$buckets = array();
-		if ( false === $nodes ) {
+		$nodes   = crb_xpath_query( $xpath, './/img[@src or @data-src or @data-original or @data-lazy-src] | .//picture//img | .//picture//source[@srcset]', $context );
+		if ( null === $nodes ) {
 			return array();
 		}
 
@@ -346,8 +350,8 @@ class Custom_RSS_Builder_Element_Discovery {
 		$buckets = array();
 
 		foreach ( $tags as $tag ) {
-			$nodes = $xpath->query( './/' . $tag, $context );
-			if ( false === $nodes ) {
+			$nodes = crb_xpath_query( $xpath, './/' . $tag, $context );
+			if ( null === $nodes ) {
 				continue;
 			}
 			for ( $i = 0; $i < $nodes->length; $i++ ) {
@@ -395,7 +399,7 @@ class Custom_RSS_Builder_Element_Discovery {
 	}
 
 	/**
-	 * link / thumb-candidates など HTML 属性由来の候補（Vue コンポーネント向け）。
+	 * link 属性など HTML 属性由来の候補。
 	 *
 	 * @param DOMXPath   $xpath   XPath.
 	 * @param DOMElement $context Context.
@@ -403,8 +407,8 @@ class Custom_RSS_Builder_Element_Discovery {
 	 */
 	private function collect_attr_media_groups( DOMXPath $xpath, DOMElement $context ) {
 		$groups = array();
-		$nodes  = $xpath->query( './/*', $context );
-		if ( false === $nodes ) {
+		$nodes  = crb_xpath_query( $xpath, './/*', $context );
+		if ( null === $nodes ) {
 			return array();
 		}
 
@@ -433,44 +437,6 @@ class Custom_RSS_Builder_Element_Discovery {
 							),
 						),
 					);
-				}
-			}
-
-			if ( $node->hasAttributes() ) {
-				foreach ( $node->attributes as $attr ) {
-					$name = (string) $attr->name;
-					if ( false === stripos( $name, 'thumb-candidates' ) && false === stripos( $name, 'thumb_candidates' ) ) {
-						continue;
-					}
-					$urls = $this->urls_from_attribute_value( (string) $attr->value );
-					if ( empty( $urls ) ) {
-						continue;
-					}
-					$selector = $this->suggest_generic_selector( $node, $context );
-					if ( '' !== $selector ) {
-						$selector .= '[' . preg_replace( '/[^a-zA-Z0-9_\-:]/', '', $name ) . ']';
-					} else {
-						$selector = '*[' . preg_replace( '/[^a-zA-Z0-9_\-:]/', '', $name ) . ']';
-					}
-					$key = 'thumb_attr|' . $selector;
-					if ( ! isset( $groups[ $key ] ) ) {
-						$samples = array();
-						foreach ( array_slice( $urls, 0, self::MAX_SAMPLES ) as $url ) {
-							$samples[] = array(
-								'src' => $this->truncate( $url, 120 ),
-								'alt' => $this->truncate( (string) $node->getAttribute( 'alt' ), 80 ),
-							);
-						}
-						$groups[ $key ] = array(
-							'kind'        => 'image',
-							'role'        => 'eyecatch',
-							'selector'    => $selector,
-							'count'       => 1,
-							'priority'    => 70,
-							'recommended' => false,
-							'samples'     => $samples,
-						);
-					}
 				}
 			}
 
@@ -556,11 +522,11 @@ class Custom_RSS_Builder_Element_Discovery {
 		if ( is_wp_error( $query ) ) {
 			return array();
 		}
-		$items = $xpath->query( $query, $context );
-		if ( false === $items || 0 === $items->length ) {
+		$items = crb_xpath_query( $xpath, $query, $context );
+		if ( null === $items || 0 === $items->length ) {
 			return array();
 		}
-		$item = $items->item( 0 );
+		$item = $this->pick_meaningful_item_node( $xpath, $items );
 		if ( ! ( $item instanceof DOMElement ) ) {
 			return array();
 		}
@@ -568,8 +534,8 @@ class Custom_RSS_Builder_Element_Discovery {
 		$groups = array();
 		$seen   = array();
 
-		$img_nodes = $xpath->query( './/img[@src or @data-src or @data-original] | .//picture//img', $item );
-		if ( false !== $img_nodes ) {
+		$img_nodes = crb_xpath_query( $xpath, './/img[@src or @data-src or @data-original] | .//picture//img', $item );
+		if ( null !== $img_nodes ) {
 			for ( $i = 0; $i < $img_nodes->length && count( $groups ) < 15; $i++ ) {
 				$node = $img_nodes->item( $i );
 				if ( ! ( $node instanceof DOMElement ) ) {
@@ -593,8 +559,8 @@ class Custom_RSS_Builder_Element_Discovery {
 			}
 		}
 
-		$link_nodes = $xpath->query( './/a[@href]', $item );
-		if ( false !== $link_nodes ) {
+		$link_nodes = crb_xpath_query( $xpath, './/a[@href]', $item );
+		if ( null !== $link_nodes ) {
 			for ( $i = 0; $i < $link_nodes->length && count( $groups ) < 25; $i++ ) {
 				$node = $link_nodes->item( $i );
 				if ( ! ( $node instanceof DOMElement ) ) {
@@ -626,8 +592,8 @@ class Custom_RSS_Builder_Element_Discovery {
 			}
 		}
 
-		$text_nodes = $xpath->query( './/p | .//dd | .//span | .//div[@class]', $item );
-		if ( false !== $text_nodes ) {
+		$text_nodes = crb_xpath_query( $xpath, './/p | .//dd | .//span | .//div[@class]', $item );
+		if ( null !== $text_nodes ) {
 			for ( $i = 0; $i < $text_nodes->length && count( $groups ) < 40; $i++ ) {
 				$node = $text_nodes->item( $i );
 				if ( ! ( $node instanceof DOMElement ) ) {
@@ -656,6 +622,48 @@ class Custom_RSS_Builder_Element_Discovery {
 		}
 
 		return $groups;
+	}
+
+	/**
+	 * item_selector で一致した要素群から、候補抽出に向くノードを優先採用する。
+	 * （hidden 計測用 div など空ノードを先頭に引かないため）
+	 *
+	 * @param DOMXPath   $xpath XPath.
+	 * @param DOMNodeList $items Matched items.
+	 * @return DOMElement|null
+	 */
+	private function pick_meaningful_item_node( DOMXPath $xpath, DOMNodeList $items ) {
+		for ( $i = 0; $i < $items->length; $i++ ) {
+			$node = $items->item( $i );
+			if ( ! ( $node instanceof DOMElement ) ) {
+				continue;
+			}
+			if ( $this->node_has_meaningful_signal( $xpath, $node ) ) {
+				return $node;
+			}
+		}
+		$fallback = $items->item( 0 );
+		return ( $fallback instanceof DOMElement ) ? $fallback : null;
+	}
+
+	/**
+	 * 1件ブロック候補として有効なシグナルを持つか判定。
+	 *
+	 * @param DOMXPath   $xpath XPath.
+	 * @param DOMElement $node  Candidate node.
+	 * @return bool
+	 */
+	private function node_has_meaningful_signal( DOMXPath $xpath, DOMElement $node ) {
+		$text = $this->node_text( $node );
+		if ( mb_strlen( $text ) >= 12 ) {
+			return true;
+		}
+		$links = crb_xpath_query( $xpath, './/a[@href]', $node );
+		if ( null !== $links && $links->length > 0 ) {
+			return true;
+		}
+		$imgs = crb_xpath_query( $xpath, './/img[@src or @data-src or @data-original] | .//picture//img | .//source[@srcset]', $node );
+		return null !== $imgs && $imgs->length > 0;
 	}
 
 	/**
@@ -706,12 +714,17 @@ class Custom_RSS_Builder_Element_Discovery {
 	 */
 	private function collect_block_groups( DOMXPath $xpath, DOMElement $context ) {
 		$class_counts = array();
-		$nodes        = $xpath->query( './/*[@class]', $context );
-		if ( false === $nodes ) {
+		$nodes        = crb_xpath_query( $xpath, './/*[@class]', $context );
+		if ( null === $nodes ) {
 			return array();
 		}
 
-		for ( $i = 0; $i < $nodes->length; $i++ ) {
+		$max_scan = (int) $nodes->length;
+		if ( $this->lightweight_dom && function_exists( 'crb_discover_class_scan_limit' ) ) {
+			$max_scan = min( $max_scan, crb_discover_class_scan_limit() );
+		}
+
+		for ( $i = 0; $i < $max_scan; $i++ ) {
 			$node = $nodes->item( $i );
 			if ( ! ( $node instanceof DOMElement ) ) {
 				continue;
@@ -759,13 +772,13 @@ class Custom_RSS_Builder_Element_Discovery {
 	}
 
 	/**
-	 * より具体的なクラス（review_contents_inner 等）をブロック候補から除外。
+	 * より具体的な派生クラスをブロック候補から除外。
 	 *
 	 * @param string               $token        Class token.
 	 * @param array<string, int>   $class_counts Counts by token.
 	 */
 	private function is_noisy_block_class( $token, array $class_counts ) {
-		// より長い派生クラス（review_contents_inner 等）だけ除外し、親（review_contents）は残す。
+		// より長い派生クラス名だけ除外し、短い親クラスは残す。
 		foreach ( array_keys( $class_counts ) as $other ) {
 			if ( $other === $token ) {
 				continue;
@@ -778,7 +791,7 @@ class Custom_RSS_Builder_Element_Discovery {
 		if ( in_array( $token, $noise_tokens, true ) ) {
 			return true;
 		}
-		$noise_prefixes = array( 'type_', 'icon_', 'btn_', 'star_', 'work_btn', 'ga4_' );
+		$noise_prefixes = array( 'type_', 'icon_', 'btn_', 'star_', 'ga4_' );
 		foreach ( $noise_prefixes as $prefix ) {
 			if ( 0 === strpos( $token, $prefix ) ) {
 				return true;
@@ -900,7 +913,7 @@ class Custom_RSS_Builder_Element_Discovery {
 			$score += 10;
 		}
 
-		if ( preg_match( '#/(cart|wishlist|login|logout|register|signup|contact|share|report|genre|fsr|reviewlist|reviewer|keyword_creater|circle/profile)/#i', $href ) ) {
+		if ( preg_match( '#/(cart|wishlist|login|logout|register|signup|contact|share|report)/#i', $href ) ) {
 			$score -= 80;
 		}
 		if ( preg_match( '#/(cart|wishlist)/#i', $href ) || false !== strpos( $href, 'btn_' ) ) {
@@ -908,12 +921,6 @@ class Custom_RSS_Builder_Element_Discovery {
 		}
 		if ( preg_match( '/^\(\d+\)$/', $text ) ) {
 			$score -= 60;
-		}
-		if ( in_array( $text, array( 'カートに入れる', 'お気に入りに追加', '無料サンプル', '報告する', 'カートに追加' ), true ) ) {
-			$score -= 60;
-		}
-		if ( $this->ancestor_has_class_token( $element, 'search_tag' ) ) {
-			$score -= 30;
 		}
 
 		return $score;
@@ -1146,8 +1153,8 @@ class Custom_RSS_Builder_Element_Discovery {
 			return $group;
 		}
 
-		$nodes = $xpath->query( $query, $context );
-		if ( false === $nodes || 0 === $nodes->length ) {
+		$nodes = crb_xpath_query( $xpath, $query, $context );
+		if ( null === $nodes || 0 === $nodes->length ) {
 			return $group;
 		}
 

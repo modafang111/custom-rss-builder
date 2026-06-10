@@ -1,6 +1,6 @@
 <?php
 /**
- * 外部HTML取得とキャッシュ。
+ * 外部 HTML 取得（キャッシュなし・毎回 wp_remote_get）。
  *
  * @package Custom_RSS_Builder
  */
@@ -11,18 +11,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Custom_RSS_Builder_HTML_Fetcher {
 
-	public function fetch_html( $url, $force_refresh = false ) {
+	/**
+	 * @param string                           $url     Target URL.
+	 * @param array<string, mixed>|bool|null $options 互換用（無視）。
+	 * @return string|WP_Error
+	 */
+	public function fetch_html( $url, $options = false ) {
+		unset( $options );
 		$url = esc_url_raw( $url );
 		if ( empty( $url ) ) {
 			return new WP_Error( 'crb_invalid_url', __( '対象URLが不正です。', 'custom-rss-builder' ) );
 		}
 
-		$cache_key = 'custom_rss_builder_html_' . md5( $url );
-		if ( ! $force_refresh ) {
-			$cached = get_transient( $cache_key );
-			if ( is_string( $cached ) && '' !== $cached ) {
-				return $cached;
-			}
+		if ( function_exists( 'crb_clear_html_cache' ) ) {
+			crb_clear_html_cache( $url );
 		}
 
 		$response = wp_remote_get(
@@ -38,6 +40,7 @@ class Custom_RSS_Builder_HTML_Fetcher {
 			return new WP_Error(
 				'crb_fetch_failed',
 				sprintf(
+					/* translators: %s: error message */
 					__( '対象URLにアクセスできませんでした: %s', 'custom-rss-builder' ),
 					$response->get_error_message()
 				)
@@ -49,6 +52,7 @@ class Custom_RSS_Builder_HTML_Fetcher {
 			return new WP_Error(
 				'crb_http_error',
 				sprintf(
+					/* translators: %d: HTTP status code */
 					__( '対象URLにアクセスできませんでした (HTTPステータス: %d)', 'custom-rss-builder' ),
 					$status
 				)
@@ -56,13 +60,17 @@ class Custom_RSS_Builder_HTML_Fetcher {
 		}
 
 		$body = (string) wp_remote_retrieve_body( $response );
-		$html = $this->convert_to_utf8( $body, wp_remote_retrieve_headers( $response ), $url );
-
-		set_transient( $cache_key, $html, CRB_CACHE_TTL );
-		return $html;
+		return $this->convert_to_utf8( $body, wp_remote_retrieve_headers( $response ), $url );
 	}
 
+	/**
+	 * @param string       $html_content Body.
+	 * @param array|object $headers      Response headers.
+	 * @param string       $url          URL.
+	 * @return string
+	 */
 	public function convert_to_utf8( $html_content, $headers, $url ) {
+		unset( $url );
 		$charset = '';
 
 		if ( is_object( $headers ) && method_exists( $headers, 'offsetGet' ) ) {

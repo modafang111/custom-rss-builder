@@ -4,7 +4,7 @@
  */
 define( 'ABSPATH', true );
 define( 'CRB_MAX_ITEMS', 20 );
-define( 'CRB_RECORD_SLOT_COUNT', 12 );
+define( 'CRB_RECORD_SLOT_COUNT', 20 );
 define( 'CRB_RECORD_PREVIEW_LIMIT', 3 );
 
 if ( ! function_exists( '__' ) ) {
@@ -131,14 +131,13 @@ crb_assert(
 	crb_row_value( $r['rows'], 1 )
 );
 
-// --- DLsite（検証用）: 1件ブロックで {%1}{%2} が取れること ---
-$r = crb_test_discover_preview( 'dlsite-review-snippet.html', '#review_list', '.review_contents' );
-crb_assert( '' !== trim( (string) ( $r['suggested']['link_selector'] ?? '' ) ), 'dlsite: primary link selector present', $r['suggested']['link_selector'] ?? '' );
-crb_assert( '' !== crb_row_value( $r['rows'], 0 ), 'dlsite: {%1} title', crb_row_value( $r['rows'], 0 ) );
-crb_assert( '' !== crb_row_value( $r['rows'], 1 ), 'dlsite: {%2} href', crb_row_value( $r['rows'], 1 ) );
-// 最長テキストは {%3} 以降に入る（レビュー本文が作品紹介より長ければ review_desc 側）
+// --- レビュー一覧フィクスチャ: 1件ブロックで {%1}{%2} が取れること ---
+$r = crb_test_discover_preview( 'review-list-sample.html', '#review_list', '.review_contents' );
+crb_assert( '' !== trim( (string) ( $r['suggested']['link_selector'] ?? '' ) ), 'review-list: primary link selector present', $r['suggested']['link_selector'] ?? '' );
+crb_assert( '' !== crb_row_value( $r['rows'], 0 ), 'review-list: {%1} title', crb_row_value( $r['rows'], 0 ) );
+crb_assert( '' !== crb_row_value( $r['rows'], 1 ), 'review-list: {%2} href', crb_row_value( $r['rows'], 1 ) );
 $summary = crb_row_value( $r['rows'], 2 );
-crb_assert( '' !== $summary, 'dlsite: {%3} has longest text field', $summary );
+crb_assert( '' !== $summary, 'review-list: {%3} has longest text field', $summary );
 
 echo "\n";
 if ( $failures > 0 ) {

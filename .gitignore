@@ -18,3 +18,4 @@ Thumbs.db
 
 # ビルド成果物（必要なら zip も除外）
 *.zip
+dist/archives/manifest.jsonl

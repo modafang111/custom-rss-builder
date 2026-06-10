@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
-"""WordPress 向けに forward-slash パスでプラグイン ZIP を作成する。"""
+"""
+WordPress 向けプラグイン ZIP。
+
+- 既定: Level 3 のクライアント用 + 正本サーバー用（dist/）
+- --dev-only: 開発用フルツリー 1 本（custom-rss-builder.zip）
+"""
 from __future__ import annotations
 
+import argparse
+import sys
 import zipfile
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
-# ソースは custom-rss-builder/custom-rss-builder/ にある（ZIP 内は custom-rss-builder/ 直下）
 PLUGIN_DIR = BASE / "custom-rss-builder" / "custom-rss-builder"
-OUTPUT_ZIP = BASE / "custom-rss-builder.zip"
-
+DEV_ZIP = BASE / "custom-rss-builder.zip"
 SKIP_NAMES = {".DS_Store", "Thumbs.db"}
 
 
@@ -17,31 +22,46 @@ def should_skip(path: Path) -> bool:
     return path.name in SKIP_NAMES or path.name.startswith(".")
 
 
-def build_zip() -> Path:
+def build_dev_zip() -> Path:
     if not PLUGIN_DIR.is_dir():
         raise FileNotFoundError(f"Plugin folder not found: {PLUGIN_DIR}")
-    if not (PLUGIN_DIR / "custom-rss-builder.php").is_file():
-        raise FileNotFoundError("Main plugin file missing: custom-rss-builder/custom-rss-builder.php")
-
-    if OUTPUT_ZIP.exists():
-        OUTPUT_ZIP.unlink()
-
-    with zipfile.ZipFile(OUTPUT_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
+    if DEV_ZIP.exists():
+        DEV_ZIP.unlink()
+    with zipfile.ZipFile(DEV_ZIP, "w", zipfile.ZIP_DEFLATED) as zf:
         for file_path in sorted(PLUGIN_DIR.rglob("*")):
             if file_path.is_dir() or should_skip(file_path):
                 continue
+            if "__pycache__" in file_path.parts or file_path.suffix == ".pyc":
+                continue
             rel = file_path.relative_to(PLUGIN_DIR).as_posix()
-            arcname = f"{PLUGIN_DIR.name}/{rel}"
-            zf.write(file_path, arcname)
+            zf.write(file_path, f"{PLUGIN_DIR.name}/{rel}")
+    return DEV_ZIP
 
-    return OUTPUT_ZIP
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Build Custom RSS Builder ZIP(s)")
+    parser.add_argument(
+        "--dev-only",
+        action="store_true",
+        help="Build full dev tree zip only (custom-rss-builder.zip)",
+    )
+    args = parser.parse_args()
+
+    if args.dev_only:
+        out = build_dev_zip()
+        print(f"OK: {out}")
+        return 0
+
+    from build_plugin_dist import main as build_dist
+
+    code = build_dist()
+    if code != 0:
+        return code
+
+    out = build_dev_zip()
+    print(f"OK (dev full): {out}")
+    return 0
 
 
 if __name__ == "__main__":
-    out = build_zip()
-    with zipfile.ZipFile(out) as zf:
-        names = zf.namelist()[:5]
-    print(f"OK: {out}")
-    print("Sample entries:")
-    for name in names:
-        print(f"  {name}")
+    raise SystemExit(main())

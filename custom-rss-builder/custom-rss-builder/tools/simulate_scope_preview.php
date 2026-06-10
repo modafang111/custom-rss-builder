@@ -5,7 +5,7 @@
  */
 define( 'ABSPATH', true );
 define( 'CRB_MAX_ITEMS', 20 );
-define( 'CRB_RECORD_SLOT_COUNT', 12 );
+define( 'CRB_RECORD_SLOT_COUNT', 20 );
 define( 'CRB_RECORD_PREVIEW_LIMIT', 3 );
 
 if ( ! function_exists( '__' ) ) {

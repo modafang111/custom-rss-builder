@@ -8,6 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 $preview_feed  = isset( $feed ) && is_array( $feed ) ? $feed : array();
 $slot_schema   = crb_get_record_slot_schema( crb_get_feed_css_config( $preview_feed ) );
+$slot_rules    = crb_get_slot_rules_for_json( crb_get_feed_css_config( $preview_feed ) );
 $slot_count    = count( $slot_schema );
 $preview_cap   = isset( $preview_data['preview_limit'] ) ? max( 1, (int) $preview_data['preview_limit'] ) : 3;
 $total_rows    = ! empty( $preview_data['rows'] ) && is_array( $preview_data['rows'] ) ? count( $preview_data['rows'] ) : 0;
@@ -26,12 +27,45 @@ $plugin_ver    = isset( $preview_data['plugin_version'] ) ? (string) $preview_da
 	<?php if ( ! empty( $preview_data['extraction_mode'] ) && 'css' === $preview_data['extraction_mode'] ) : ?>
 		<div class="notice notice-success inline"><p><?php esc_html_e( 'CSS セレクタで抽出しました。', 'custom-rss-builder' ); ?></p></div>
 	<?php endif; ?>
+	<?php
+	$preview_lr = function_exists( 'crb_get_feed_link_rewrite' ) ? crb_get_feed_link_rewrite( $preview_feed ) : array();
+	if ( ! empty( $preview_lr['enabled'] ) ) :
+		?>
+		<div class="notice notice-info inline"><p><?php esc_html_e( 'リンク変換（アフィリエイト）を適用した値を表示しています。', 'custom-rss-builder' ); ?></p></div>
+	<?php endif; ?>
+	<?php if ( ! empty( $preview_data['ai_applied'] ) ) : ?>
+		<div class="notice notice-success inline"><p>
+			<?php
+			if ( ! empty( $preview_data['ai_summary'] ) ) {
+				echo esc_html( (string) $preview_data['ai_summary'] );
+			} else {
+				esc_html_e( 'AI テキスト変換を適用した値を表示しています。', 'custom-rss-builder' );
+			}
+			?>
+		</p></div>
+	<?php elseif ( ! empty( $preview_data['ai_stats']['attempted'] ) ) : ?>
+		<div class="notice notice-warning inline"><p>
+			<?php
+			if ( ! empty( $preview_data['ai_summary'] ) ) {
+				echo esc_html( (string) $preview_data['ai_summary'] );
+			} else {
+				esc_html_e( 'AI テキスト変換は実行されましたが、成功した項目はありません。', 'custom-rss-builder' );
+			}
+			?>
+		</p></div>
+	<?php endif; ?>
+	<?php if ( ! empty( $preview_data['ai_warnings'] ) && is_array( $preview_data['ai_warnings'] ) ) : ?>
+		<?php foreach ( $preview_data['ai_warnings'] as $ai_warning ) : ?>
+			<div class="notice notice-warning inline"><p><?php echo esc_html( (string) $ai_warning ); ?></p></div>
+		<?php endforeach; ?>
+	<?php endif; ?>
+	<?php if ( ! empty( $preview_data['ai_errors'] ) && is_array( $preview_data['ai_errors'] ) ) : ?>
+		<?php foreach ( $preview_data['ai_errors'] as $ai_error ) : ?>
+			<div class="notice notice-error inline"><p><?php echo esc_html( (string) $ai_error ); ?></p></div>
+		<?php endforeach; ?>
+	<?php endif; ?>
 	<?php if ( ! empty( $preview_data['scope_applied'] ) ) : ?>
 		<div class="notice notice-success inline"><p><?php esc_html_e( '範囲テンプレートを適用したうえで抽出しました。', 'custom-rss-builder' ); ?></p></div>
-	<?php endif; ?>
-	<?php if ( ! empty( $preview_data['html_snippet'] ) ) : ?>
-		<h3><?php esc_html_e( '取得HTML（抜粋）', 'custom-rss-builder' ); ?></h3>
-		<pre class="crb-snippet"><?php echo esc_html( (string) $preview_data['html_snippet'] ); ?></pre>
 	<?php endif; ?>
 	<?php if ( ! empty( $preview_rows ) ) : ?>
 		<h3 class="crb-extraction-preview-title">
@@ -65,9 +99,14 @@ $plugin_ver    = isset( $preview_data['plugin_version'] ) ? (string) $preview_da
 					<div class="crb-slot-lines">
 						<?php for ( $slot_index = 0; $slot_index < $slot_count; $slot_index++ ) : ?>
 							<?php
-							$slot  = $slot_schema[ $slot_index ];
-							$value = isset( $row[ $slot_index ] ) ? trim( (string) $row[ $slot_index ] ) : '';
-							if ( '' === $value ) {
+							$slot     = $slot_schema[ $slot_index ];
+							$rule     = $slot_rules[ $slot_index ] ?? array();
+							$selector = trim( (string) ( $rule['selector'] ?? '' ) );
+							if ( '—' === $selector ) {
+								$selector = '';
+							}
+							$value    = isset( $row[ $slot_index ] ) ? trim( (string) $row[ $slot_index ] ) : '';
+							if ( '' === $value && '' === $selector ) {
 								continue;
 							}
 							$token = crb_slot_token( $slot_index );

@@ -19,7 +19,7 @@ class Custom_RSS_Builder_Import_Endpoint {
 	}
 
 	public function register_hooks() {
-		add_action( 'init', array( $this, 'maybe_run_import' ), 5 );
+		add_action( 'init', array( $this, 'maybe_run_import' ), 0 );
 	}
 
 	public function maybe_run_import() {
@@ -40,7 +40,11 @@ class Custom_RSS_Builder_Import_Endpoint {
 			$this->send_response( 403, array( 'error' => 'Invalid key.' ) );
 		}
 
-		$result = $this->post_importer->import_feed( $feed_id, true );
+		if ( ! crb_license_can( 'cron_import' ) ) {
+			$this->send_response( 403, array( 'error' => 'License does not allow import.' ) );
+		}
+
+		$result = $this->post_importer->import_feed( $feed_id, 'url' );
 		if ( is_wp_error( $result ) ) {
 			$this->send_response(
 				500,

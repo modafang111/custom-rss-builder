@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>Review list test fixture</title></head>
+<body>
+<div class="review_list" id="review_list">
+  <div class="review_inner">
+    <div class="review_contents">
+      <div class="review_work review_contents_inner">
+        <table cellspacing="0" class="work_1col_table">
+          <tr>
+            <td class="work_1col_thumb">
+              <div class="work_thumb">
+                <div class="work_thumb_inner">
+                  <thumb-with-ng-filter-block link="https://example.com/work/=/product_id/AAA001.html" alt="作品タイトル第一号 [サークルA]"></thumb-with-ng-filter-block>
+                  <div class="work_img_popover">
+                    <img src="//cdn.example.com/modpub/AAA001_img_main.jpg" alt="作品タイトル第一号">
+                  </div>
+                </div>
+                <div class="work_category type_SOU"><a href="https://example.com/fsr/=/work_type/SOU">ボイス</a></div>
+              </div>
+            </td>
+            <td>
+              <dl class="work_1col">
+                <dt class="work_name">
+                  <a href="https://example.com/work/=/product_id/AAA001.html" title="作品タイトル第一号">作品タイトル第一号</a>
+                </dt>
+                <dd class="maker_name"><a href="https://example.com/circle/profile/=/maker_id/SA01.html">サークルA</a></dd>
+                <dd class="work_text">作品紹介文がここに入ります。短めのテキスト。</dd>
+              </dl>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="review_header review_contents_inner">
+        <div class="reveiw_title">
+          <a href="https://example.com/work/reviewlist/=/reviewer/REV001/product_id/AAA001.html">レビュー見出し第一号</a>
+        </div>
+        <div class="reveiw_author"><a href="https://example.com/reviewlist/=/reviewer/REV001">レビュアー太郎</a></div>
+      </div>
+      <div class="review_main _review_main review_contents_inner">
+        <p class="review_desc">これはレビュー本文です。作品紹介よりもだいぶ長いテキストにしておきます。感想を書いています。スケベなシーンの話も含みます。最長フィールドとして扱われる想定です。</p>
+      </div>
+      <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Product","name":"作品タイトル第一号","image":"//cdn.example.com/modpub/AAA001_img_main.jpg","review":{"@type":"Review","reviewBody":"JSON-LD上のレビュー本文です。"}}
+      </script>
+    </div>
+    <div class="review_contents">
+      <div class="review_work review_contents_inner">
+        <table class="work_1col_table">
+          <tr>
+            <td>
+              <dl class="work_1col">
+                <dt class="work_name">
+                  <a href="https://example.com/work/=/product_id/AAA002.html" title="作品タイトル第二号">作品タイトル第二号</a>
+                </dt>
+                <dd class="work_text">二件目の紹介文。</dd>
+              </dl>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="review_main review_contents_inner">
+        <p class="review_desc">二件目のレビュー本文。こちらも十分な長さのテキストにします。</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

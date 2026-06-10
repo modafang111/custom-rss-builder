@@ -46,12 +46,23 @@ class Custom_RSS_Builder_Feed_Manager {
 			'scope_template'  => crb_sanitize_template( (string) ( $feed_data['scope_template'] ?? '' ) ),
 			'template'        => crb_sanitize_template( (string) ( $feed_data['template'] ?? '' ) ),
 			'mapping'         => $this->sanitize_mapping( $feed_data['mapping'] ?? array() ),
+			'link_rewrite'    => $this->sanitize_link_rewrite( $feed_data['link_rewrite'] ?? ( $existing['link_rewrite'] ?? array() ) ),
+			'ai'              => $this->sanitize_ai_transform( $feed_data['ai'] ?? ( $existing['ai'] ?? array() ) ),
 			'import'        => $this->sanitize_import( $feed_data['import'] ?? ( $existing['import'] ?? array() ) ),
 			'last_updated'  => current_time( 'mysql' ),
-			'last_imported' => (string) ( $existing['last_imported'] ?? '' ),
+			'last_imported'   => (string) ( $existing['last_imported'] ?? '' ),
+			'last_import_run' => is_array( $existing['last_import_run'] ?? null ) ? $existing['last_import_run'] : array(),
 		);
 
 		update_option( CRB_OPTION_FEEDS, $feeds, false );
+
+		if ( function_exists( 'crb_import_scheduler' ) ) {
+			$scheduler = crb_import_scheduler();
+			if ( $scheduler ) {
+				$scheduler->reschedule_feed( $feed_id, true );
+			}
+		}
+
 		return $feed_id;
 	}
 
@@ -79,12 +90,26 @@ class Custom_RSS_Builder_Feed_Manager {
 			return false;
 		}
 		unset( $feeds[ $feed_id ] );
+
+		if ( function_exists( 'crb_import_scheduler' ) ) {
+			$scheduler = crb_import_scheduler();
+			if ( $scheduler ) {
+				$scheduler->unschedule_feed( $feed_id );
+			}
+		}
+
 		update_option( CRB_OPTION_FEEDS, $feeds, false );
 		return true;
 	}
 
+	/**
+	 * RSS 配信用 URL（クエリ形式。サブディレクトリ設置でも確実に動作）。
+	 *
+	 * @param int $feed_id Feed ID.
+	 * @return string
+	 */
 	public function get_feed_url( $feed_id ) {
-		return home_url( '/feed/custom-rss/' . (int) $feed_id . '/' );
+		return add_query_arg( 'custom_rss_builder_feed_id', (int) $feed_id, home_url( '/' ) );
 	}
 
 	/**
@@ -102,14 +127,16 @@ class Custom_RSS_Builder_Feed_Manager {
 	 */
 	public function default_import_settings() {
 		return array(
-			'enabled'            => false,
-			'post_status'        => 'draft',
-			'post_type'          => 'post',
+			'enabled'             => false,
+			'schedule'            => 'off',
+			'post_status'         => 'draft',
+			'post_type'           => 'post',
 			'post_title_template' => '',
-			'content_template'   => '',
-			'append_source'        => false,
-			'category_id'        => 0,
-			'author_id'            => 0,
+			'content_template'    => '',
+			'append_source'       => false,
+			'category_id'         => 0,
+			'tag_ids'             => array(),
+			'author_id'           => 0,
 		);
 	}
 
@@ -132,6 +159,9 @@ class Custom_RSS_Builder_Feed_Manager {
 			}
 			$result[ $key ] = max( 0, $value );
 		}
+		if ( function_exists( 'crb_license_clamp_mapping' ) ) {
+			$result = crb_license_clamp_mapping( $result );
+		}
 		return $result;
 	}
 
@@ -139,6 +169,26 @@ class Custom_RSS_Builder_Feed_Manager {
 	 * @param mixed $import Raw import settings.
 	 * @return array<string, mixed>
 	 */
+	/**
+	 * @param mixed $raw Raw link rewrite settings.
+	 * @return array<string, mixed>
+	 */
+	private function sanitize_link_rewrite( $raw ) {
+		return function_exists( 'crb_sanitize_link_rewrite_settings' )
+			? crb_sanitize_link_rewrite_settings( $raw )
+			: array();
+	}
+
+	/**
+	 * @param mixed $raw Raw AI transform settings.
+	 * @return array<string, mixed>
+	 */
+	private function sanitize_ai_transform( $raw ) {
+		return function_exists( 'crb_sanitize_ai_transform_settings' )
+			? crb_sanitize_ai_transform_settings( $raw, true )
+			: array();
+	}
+
 	private function sanitize_import( $import ) {
 		$defaults = $this->default_import_settings();
 		if ( ! is_array( $import ) ) {
@@ -155,15 +205,31 @@ class Custom_RSS_Builder_Feed_Manager {
 			$post_type = 'post';
 		}
 
+		$enabled  = ! empty( $import['enabled'] );
+		$schedule = function_exists( 'crb_sanitize_import_schedule' )
+			? crb_sanitize_import_schedule( $import['schedule'] ?? 'off' )
+			: 'off';
+		if ( ! $enabled ) {
+			$schedule = 'off';
+		}
+
 		return array(
-			'enabled'             => ! empty( $import['enabled'] ),
+			'enabled'             => $enabled,
+			'schedule'            => $schedule,
 			'post_status'         => $status,
 			'post_type'           => $post_type,
 			'post_title_template' => crb_sanitize_template( (string) ( $import['post_title_template'] ?? '' ) ),
-			'content_template'    => crb_sanitize_template( (string) ( $import['content_template'] ?? '' ) ),
-			'append_source'       => ! empty( $import['append_source'] ),
-			'category_id'         => max( 0, (int) ( $import['category_id'] ?? 0 ) ),
-			'author_id'           => max( 0, (int) ( $import['author_id'] ?? 0 ) ),
+			'content_template'    => crb_sanitize_import_content_template( (string) ( $import['content_template'] ?? '' ) ),
+			'append_source'       => false,
+			'category_id'         => function_exists( 'crb_sanitize_import_category_id' )
+				? crb_sanitize_import_category_id( $import['category_id'] ?? 0 )
+				: max( 0, (int) ( $import['category_id'] ?? 0 ) ),
+			'tag_ids'             => function_exists( 'crb_sanitize_import_tag_ids' )
+				? crb_sanitize_import_tag_ids( $import['tag_ids'] ?? array() )
+				: array(),
+			'author_id'           => function_exists( 'crb_sanitize_import_author_id' )
+				? crb_sanitize_import_author_id( $import['author_id'] ?? 0 )
+				: max( 0, (int) ( $import['author_id'] ?? 0 ) ),
 		);
 	}
 

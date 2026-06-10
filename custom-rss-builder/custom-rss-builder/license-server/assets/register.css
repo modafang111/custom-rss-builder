@@ -1,0 +1,27 @@
+.crb-ls-register {
+	max-width: 32rem;
+	margin: 1.5rem 0;
+	padding: 1.25rem;
+	border: 1px solid rgba(0, 0, 0, 0.12);
+	background: #fff;
+}
+
+.crb-ls-register__notice {
+	padding: 0.75rem 1rem;
+	border-radius: 4px;
+}
+
+.crb-ls-register__notice--success {
+	background: #edfaef;
+	border: 1px solid #68de7c;
+}
+
+.crb-ls-register__notice--error {
+	background: #fcf0f1;
+	border: 1px solid #d63638;
+}
+
+.crb-ls-register__form input[type="email"] {
+	width: 100%;
+	max-width: 100%;
+}

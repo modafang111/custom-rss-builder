@@ -62,7 +62,7 @@ class Custom_RSS_Builder_RSS_Generator {
 			} else {
 				$this->append_text_element( $dom, $element, 'guid', $self_url . '#item-' . md5( $title . $desc ) );
 			}
-			$this->append_text_element( $dom, $element, 'description', $desc );
+			$this->append_description_element( $dom, $element, $desc );
 			$this->append_text_element( $dom, $element, 'pubDate', $this->format_pub_date( $date ) );
 			$channel->appendChild( $element );
 		}
@@ -82,6 +82,30 @@ class Custom_RSS_Builder_RSS_Generator {
 	private function append_text_element( DOMDocument $dom, DOMElement $parent, $tag, $value ) {
 		$element = $dom->createElement( $tag );
 		$element->appendChild( $dom->createTextNode( (string) $value ) );
+		$parent->appendChild( $element );
+	}
+
+	/**
+	 * @param DOMDocument $dom  Document.
+	 * @param DOMElement  $parent Item element.
+	 * @param string      $desc   Description body.
+	 */
+	private function append_description_element( DOMDocument $dom, DOMElement $parent, $desc ) {
+		if ( function_exists( 'crb_license_append_free_credit' ) ) {
+			$desc = crb_license_append_free_credit( (string) $desc );
+		}
+
+		$element = $dom->createElement( 'description' );
+		$desc      = (string) $desc;
+		$use_cdata = '' !== $desc && false !== strpos( $desc, '<' );
+		if ( ! $use_cdata && function_exists( 'crb_license_content_has_free_credit' ) ) {
+			$use_cdata = crb_license_content_has_free_credit( $desc );
+		}
+		if ( $use_cdata ) {
+			$element->appendChild( $dom->createCDATASection( $desc ) );
+		} else {
+			$element->appendChild( $dom->createTextNode( $desc ) );
+		}
 		$parent->appendChild( $element );
 	}
 }

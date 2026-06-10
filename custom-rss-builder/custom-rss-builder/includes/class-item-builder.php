@@ -11,6 +11,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Custom_RSS_Builder_Item_Builder {
 
+	/**
+	 * @param string               $link          Raw link from slot/mapping.
+	 * @param string               $feed_url      Feed source URL.
+	 * @param array<string, mixed> $feed_settings Feed row.
+	 * @return string
+	 */
+	private function finalize_item_link( $link, $feed_url, $feed_settings = array() ) {
+		$link = crb_normalize_link( $this->resolve_url( $link, $feed_url ) );
+		if ( function_exists( 'crb_feed_rewrite_url' ) && is_array( $feed_settings ) ) {
+			$link = crb_feed_rewrite_url( $link, $feed_settings );
+		}
+		return $link;
+	}
+
 	public function build_items( $feed_settings, $extracted_data ) {
 		if ( empty( $extracted_data ) || ! is_array( $extracted_data ) ) {
 			return array();
@@ -26,11 +40,11 @@ class Custom_RSS_Builder_Item_Builder {
 			}
 
 			if ( crb_is_slot_indexed_row( $row ) ) {
-				$built = $this->build_from_slot_row( $row, $mapping, $feed_url );
+				$built = $this->build_from_slot_row( $row, $mapping, $feed_url, $feed_settings );
 			} elseif ( crb_is_named_record( $row ) ) {
-				$built = $this->build_from_record( $row, $feed_url );
+				$built = $this->build_from_record( $row, $feed_url, $feed_settings );
 			} else {
-				$built = $this->build_from_numeric_row( $row, $mapping, $feed_url );
+				$built = $this->build_from_numeric_row( $row, $mapping, $feed_url, $feed_settings );
 			}
 
 			if ( null === $built ) {
@@ -50,7 +64,8 @@ class Custom_RSS_Builder_Item_Builder {
 	 * @param string             $feed_url Feed URL.
 	 * @return array<string, string>|null
 	 */
-	private function build_from_slot_row( array $row, array $mapping, $feed_url ) {
+	private function build_from_slot_row( array $row, array $mapping, $feed_url, $feed_settings = array() ) {
+		$mapping = array_merge( crb_default_rss_mapping(), $mapping );
 		$title = $this->mapped_value( $row, $mapping, 'title' );
 		$link  = $this->mapped_value( $row, $mapping, 'link' );
 		$desc  = $this->mapped_value( $row, $mapping, 'description' );
@@ -73,7 +88,7 @@ class Custom_RSS_Builder_Item_Builder {
 			$title = wp_trim_words( $desc, 12, '...' );
 		}
 
-		$link = crb_normalize_link( $this->resolve_url( $link, $feed_url ) );
+		$link = $this->finalize_item_link( $link, $feed_url, $feed_settings );
 		if ( '' === $title && '' === $link ) {
 			return null;
 		}
@@ -92,8 +107,8 @@ class Custom_RSS_Builder_Item_Builder {
 	 * @param string                $feed_url Feed URL.
 	 * @return array<string, string>|null
 	 */
-	private function build_from_record( array $row, $feed_url ) {
-		return $this->build_from_slot_row( crb_record_to_slot_row( $row ), array(), $feed_url );
+	private function build_from_record( array $row, $feed_url, $feed_settings = array() ) {
+		return $this->build_from_slot_row( crb_record_to_slot_row( $row ), array(), $feed_url, $feed_settings );
 	}
 
 	/**
@@ -102,7 +117,8 @@ class Custom_RSS_Builder_Item_Builder {
 	 * @param string               $feed_url Feed URL.
 	 * @return array<string, string>|null
 	 */
-	private function build_from_numeric_row( array $row, array $mapping, $feed_url ) {
+	private function build_from_numeric_row( array $row, array $mapping, $feed_url, $feed_settings = array() ) {
+		$mapping = array_merge( crb_default_rss_mapping(), $mapping );
 		$title = $this->mapped_value( $row, $mapping, 'title' );
 		$link  = $this->mapped_value( $row, $mapping, 'link' );
 		$desc  = $this->mapped_value( $row, $mapping, 'description' );
@@ -112,7 +128,7 @@ class Custom_RSS_Builder_Item_Builder {
 			$title = wp_trim_words( $desc, 12, '...' );
 		}
 
-		$link = crb_normalize_link( $this->resolve_url( $link, $feed_url ) );
+		$link = $this->finalize_item_link( $link, $feed_url, $feed_settings );
 		if ( '' === $title && '' === $link ) {
 			return null;
 		}

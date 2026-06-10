@@ -21,54 +21,72 @@ class Custom_RSS_Builder_Post_Importer {
 	/** @var Custom_RSS_Builder_HTML_Fetcher */
 	private $html_fetcher;
 
-	/** @var Custom_RSS_Builder_HTML_Parser */
-	private $html_parser;
-
 	/** @var Custom_RSS_Builder_Item_Builder */
 	private $item_builder;
 
 	/** @var Custom_RSS_Builder_Content_Template */
 	private $content_template;
 
-	public function __construct( $feed_manager, $html_fetcher, $html_parser, $item_builder = null, $content_template = null ) {
+	public function __construct( $feed_manager, $html_fetcher, $item_builder = null, $content_template = null ) {
 		$this->feed_manager     = $feed_manager;
 		$this->html_fetcher     = $html_fetcher;
-		$this->html_parser      = $html_parser;
 		$this->item_builder     = $item_builder ? $item_builder : new Custom_RSS_Builder_Item_Builder();
 		$this->content_template = $content_template ? $content_template : new Custom_RSS_Builder_Content_Template();
 	}
 
 	/**
-	 * @param int  $feed_id       Feed ID.
-	 * @param bool $force_refresh Bypass HTML cache.
+	 * @param int    $feed_id Feed ID.
+	 * @param string $source  manual|cron|loopback|url.
 	 * @return array{created:int,skipped:int,errors:string[]}|WP_Error
 	 */
-	public function import_feed( $feed_id, $force_refresh = false ) {
+	public function import_feed( $feed_id, $source = 'manual' ) {
 		$feed = $this->feed_manager->get_feed( $feed_id );
 		if ( null === $feed ) {
-			return new WP_Error( 'crb_feed_not_found', __( 'フィードが見つかりません。', 'custom-rss-builder' ) );
+			$error = new WP_Error( 'crb_feed_not_found', __( 'フィードが見つかりません。', 'custom-rss-builder' ) );
+			if ( function_exists( 'crb_import_run_record' ) ) {
+				crb_import_run_record( $feed_id, $source, $error );
+			}
+			return $error;
 		}
 
 		$import = $this->feed_manager->get_import_settings( $feed );
 		if ( empty( $import['enabled'] ) ) {
-			return new WP_Error( 'crb_import_disabled', __( '投稿への取り込みが無効です。フィード設定で有効にしてください。', 'custom-rss-builder' ) );
+			$error = new WP_Error( 'crb_import_disabled', __( '投稿への取り込みが無効です。フィード設定で有効にしてください。', 'custom-rss-builder' ) );
+			if ( function_exists( 'crb_import_run_record' ) ) {
+				crb_import_run_record( $feed_id, $source, $error );
+			}
+			return $error;
 		}
 
 		if ( '' === trim( (string) ( $import['content_template'] ?? '' ) ) ) {
-			return new WP_Error(
+			$error = new WP_Error(
 				'crb_empty_content_template',
 				__( '投稿本文テンプレートが未設定です。Feed43 の Item テンプレートのように、HTMLとプレースホルダーを入力してください。', 'custom-rss-builder' )
 			);
+			if ( function_exists( 'crb_import_run_record' ) ) {
+				crb_import_run_record( $feed_id, $source, $error );
+			}
+			return $error;
 		}
 
-		$html = $this->html_fetcher->fetch_html( $feed['url'], $force_refresh );
+		$html = $this->html_fetcher->fetch_html( $feed['url'] );
 		if ( is_wp_error( $html ) ) {
+			if ( function_exists( 'crb_import_run_record' ) ) {
+				crb_import_run_record( $feed_id, $source, $html );
+			}
 			return $html;
 		}
 
 		$parsed = crb_extract_items_from_html( $html, $feed );
 		if ( is_wp_error( $parsed ) ) {
+			if ( function_exists( 'crb_import_run_record' ) ) {
+				crb_import_run_record( $feed_id, $source, $parsed );
+			}
 			return $parsed;
+		}
+
+		if ( function_exists( 'crb_ai_transform_rows' ) ) {
+			$parsed = crb_ai_transform_rows( $feed, $parsed, 'import' );
 		}
 
 		$mapping = is_array( $feed['mapping'] ?? null ) ? $feed['mapping'] : array();
@@ -100,7 +118,9 @@ class Custom_RSS_Builder_Post_Importer {
 			}
 		}
 
-		$this->feed_manager->touch_feed( $feed_id, array( 'last_imported' => current_time( 'mysql' ) ) );
+		if ( function_exists( 'crb_import_run_record' ) ) {
+			crb_import_run_record( $feed_id, $source, $result );
+		}
 
 		return $result;
 	}
@@ -224,6 +244,16 @@ class Custom_RSS_Builder_Post_Importer {
 			wp_set_post_categories( (int) $post_id, array( $category_id ), false );
 		}
 
+		$tag_ids = isset( $import['tag_ids'] ) && is_array( $import['tag_ids'] )
+			? $import['tag_ids']
+			: array();
+		if ( function_exists( 'crb_sanitize_import_tag_ids' ) ) {
+			$tag_ids = crb_sanitize_import_tag_ids( $tag_ids );
+		}
+		if ( ! empty( $tag_ids ) && 'post' === $post_type ) {
+			wp_set_post_tags( (int) $post_id, $tag_ids, false );
+		}
+
 		return 'created';
 	}
 
@@ -255,14 +285,10 @@ class Custom_RSS_Builder_Post_Importer {
 	 */
 	private function build_post_content( $import, $item, $row, $mapping ) {
 		$template = (string) ( $import['content_template'] ?? '' );
-		$content  = $this->content_template->render( $template, $item, $row, $mapping );
+		$content = $this->content_template->render( $template, $item, $row, $mapping );
 
-		if ( ! empty( $import['append_source'] ) && '' !== ( $item['link'] ?? '' ) ) {
-			$content .= sprintf(
-				'<p><a href="%s" rel="nofollow noopener" target="_blank">%s</a></p>',
-				esc_url( (string) $item['link'] ),
-				esc_html__( '元記事を読む', 'custom-rss-builder' )
-			);
+		if ( function_exists( 'crb_license_append_free_credit' ) ) {
+			$content = crb_license_append_free_credit( $content );
 		}
 
 		return $content;
