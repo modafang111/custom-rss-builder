@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_INSTALL_MANUAL_VERSION', '1' );
+define( 'CRB_INSTALL_MANUAL_VERSION', '2' );
 define( 'CRB_INSTALL_MANUAL_OPTION_PAGE_ID', 'crb_install_manual_page_id' );
 
 /**
@@ -195,6 +195,16 @@ function crb_install_manual_build_page_content() {
 				'<li><a href="%s">%s</a></li>',
 				esc_url( $ai_url ),
 				esc_html__( 'Gemini API キー設定手順（Pro AI 変換）', 'custom-rss-builder' )
+			);
+		}
+	}
+	if ( function_exists( 'crb_feed_pack_manual_page_url' ) ) {
+		$fpack_url = crb_feed_pack_manual_page_url();
+		if ( '' !== $fpack_url ) {
+			$lines[] = sprintf(
+				'<li><a href="%s">%s</a></li>',
+				esc_url( $fpack_url ),
+				esc_html__( 'フィード設定パック（エクスポート／インポート）手順', 'custom-rss-builder' )
 			);
 		}
 	}

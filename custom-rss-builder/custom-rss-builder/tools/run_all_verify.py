@@ -14,6 +14,7 @@ scripts = [
     ROOT / "tools" / "verify_trim_ui.py",
     ROOT / "tools" / "verify_feed_pack_export.py",
     ROOT / "tools" / "verify_feed_pack_import.py",
+    ROOT / "tools" / "verify_feed_pack_manual.py",
     ROOT / "tools" / "run_feed43_tests_py.py",
     ROOT / "tools" / "verify_plugin_bootstrap.py",
     ROOT / "tools" / "debug_integrated_flow.py",

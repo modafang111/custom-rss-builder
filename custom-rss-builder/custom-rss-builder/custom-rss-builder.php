@@ -38,7 +38,7 @@ define( 'CRB_VERSION', '0.9.0' );
 
 /** デプロイごとに更新（管理画面 JS/CSS のバージョン用） */
 
-define( 'CRB_BUILD_ID', '20260610r' );
+define( 'CRB_BUILD_ID', '20260610s' );
 
 define( 'CRB_PLUGIN_FILE', __FILE__ );
 
@@ -61,6 +61,7 @@ require_once CRB_PLUGIN_DIR . 'includes/functions-license.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-demo-samples.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-ai-manual.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-install-manual.php';
+require_once CRB_PLUGIN_DIR . 'includes/functions-feed-pack-manual.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-third-party-compat.php';
 
 if ( crb_is_client_app_enabled() ) {

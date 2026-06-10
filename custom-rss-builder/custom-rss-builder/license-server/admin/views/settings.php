@@ -100,6 +100,19 @@ $mail_locked          = defined( 'CRB_LS_MAIL_FROM' ) || defined( 'CRB_LS_MAIL_F
 		<?php endif; ?>
 	<?php endif; ?>
 
+	<?php if ( function_exists( 'crb_license_is_authoritative_server' ) && crb_license_is_authoritative_server() && function_exists( 'crb_feed_pack_manual_page_url' ) ) : ?>
+		<?php $crb_feed_pack_manual_url = crb_feed_pack_manual_page_url(); ?>
+		<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
+		<div class="card" style="max-width:720px;margin:1em 0;padding:1em;">
+			<h2 class="title"><?php esc_html_e( 'フィード設定パック手順（クライアント向け）', 'crb-license-server' ); ?></h2>
+			<p><?php esc_html_e( 'エクスポート／インポートの手順を固定ページとして公開します。Pro 初期設定の JSON 配布時に案内してください。', 'crb-license-server' ); ?></p>
+			<p>
+				<a class="button button-secondary" href="<?php echo esc_url( $crb_feed_pack_manual_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( '設定パック手順ページを開く', 'crb-license-server' ); ?></a>
+			</p>
+		</div>
+		<?php endif; ?>
+	<?php endif; ?>
+
 	<?php if ( $show_authority_ops_notice ) : ?>
 	<div class="notice notice-info inline" style="margin:1em 0;padding:1em;">
 		<p><strong><?php esc_html_e( 'このサイトでの使い方', 'crb-license-server' ); ?></strong></p>

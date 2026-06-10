@@ -358,6 +358,16 @@ function crb_demo_samples_build_sales_page_content( array $patterns ) {
 			);
 		}
 	}
+	if ( function_exists( 'crb_feed_pack_manual_page_url' ) ) {
+		$fpack_url = crb_feed_pack_manual_page_url();
+		if ( '' !== $fpack_url ) {
+			$lines[] = sprintf(
+				'<li><a href="%s">%s</a></li>',
+				esc_url( $fpack_url ),
+				esc_html__( 'フィード設定パック（エクスポート／インポート）手順', 'custom-rss-builder' )
+			);
+		}
+	}
 	$lines[] = '</ul>';
 	$lines[] = '<p class="crb-sales-note"><small>' . esc_html__( '※ ライセンスの購入・お問い合わせは、この固定ページの内容を編集して追記してください。', 'custom-rss-builder' ) . '</small></p>';
 	$lines[] = '</div>';
@@ -434,6 +444,9 @@ function crb_demo_samples_install( $force = false ) {
 	}
 	if ( function_exists( 'crb_install_manual_install' ) ) {
 		crb_install_manual_install( true );
+	}
+	if ( function_exists( 'crb_feed_pack_manual_install' ) ) {
+		crb_feed_pack_manual_install( true );
 	}
 
 	$sales_content = crb_demo_samples_build_sales_page_content( $with_urls );
