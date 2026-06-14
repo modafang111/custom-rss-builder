@@ -119,6 +119,16 @@ def basic_checks() -> int:
     else:
         ok("element-discovery uses crb_xpath_query")
 
+    for needle in (
+        "score_item_inner_candidates",
+        "limit_groups_for_output",
+        "match_rate",
+    ):
+        if needle not in disc:
+            fail_msg(f"class-element-discovery missing {needle}")
+        else:
+            ok(f"element-discovery has {needle}")
+
     cand = (ROOT / "includes" / "functions-extract-candidates.php").read_text(encoding="utf-8")
     if "crb_extract_slot_value" not in cand:
         fail_msg("candidates must use crb_extract_slot_value")

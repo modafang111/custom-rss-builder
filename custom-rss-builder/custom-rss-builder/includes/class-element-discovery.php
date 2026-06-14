@@ -96,7 +96,7 @@ class Custom_RSS_Builder_Element_Discovery {
 			}
 		);
 
-		$groups = array_slice( $groups, 0, self::MAX_GROUPS );
+		$groups = $this->limit_groups_for_output( $groups );
 		$groups = $this->mark_primary_link_group( $groups );
 
 		return array(
@@ -104,6 +104,40 @@ class Custom_RSS_Builder_Element_Discovery {
 			'scope_label'    => '' !== trim( $scope_selector ) ? trim( $scope_selector ) : __( 'ページ全体', 'custom-rss-builder' ),
 			'groups'         => $groups,
 			'field_guide'    => $this->build_field_guide( $groups ),
+		);
+	}
+
+	/**
+	 * Feed43 のスロット提案に使う link・画像・テキスト候補を block 候補で押し出さない。
+	 *
+	 * @param array<int, array<string, mixed>> $groups Discovery groups.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function limit_groups_for_output( array $groups ) {
+		if ( count( $groups ) <= self::MAX_GROUPS ) {
+			return $groups;
+		}
+
+		$block_groups = array();
+		$slot_groups  = array();
+		foreach ( $groups as $group ) {
+			if ( 'block' === (string) ( $group['kind'] ?? '' ) ) {
+				$block_groups[] = $group;
+				continue;
+			}
+			$slot_groups[] = $group;
+		}
+
+		$block_limit = min( 15, count( $block_groups ) );
+		$slot_limit  = self::MAX_GROUPS - $block_limit;
+		if ( count( $slot_groups ) < $slot_limit ) {
+			$block_limit = min( count( $block_groups ), self::MAX_GROUPS - count( $slot_groups ) );
+			$slot_limit  = self::MAX_GROUPS - $block_limit;
+		}
+
+		return array_merge(
+			array_slice( $block_groups, 0, $block_limit ),
+			array_slice( $slot_groups, 0, $slot_limit )
 		);
 	}
 
@@ -510,7 +544,7 @@ class Custom_RSS_Builder_Element_Discovery {
 	}
 
 	/**
-	 * 1件ブロック内の img / a / テキスト候補（先頭ブロックを走査）。
+	 * 1件ブロック内の img / a / テキスト候補（複数 item を走査し一致率でスコア）。
 	 *
 	 * @param DOMXPath   $xpath         XPath.
 	 * @param DOMElement $context       Scope.
@@ -526,102 +560,249 @@ class Custom_RSS_Builder_Element_Discovery {
 		if ( null === $items || 0 === $items->length ) {
 			return array();
 		}
-		$item = $this->pick_meaningful_item_node( $xpath, $items );
-		if ( ! ( $item instanceof DOMElement ) ) {
+
+		$candidates = array();
+		$seen       = array();
+		$scan_limit = min( (int) $items->length, 5 );
+
+		for ( $item_index = 0; $item_index < $scan_limit; $item_index++ ) {
+			$item = $items->item( $item_index );
+			if ( ! ( $item instanceof DOMElement ) ) {
+				continue;
+			}
+
+			$img_nodes = crb_xpath_query( $xpath, './/img[@src or @data-src or @data-original] | .//picture//img', $item );
+			if ( null !== $img_nodes ) {
+				for ( $i = 0; $i < $img_nodes->length && count( $candidates ) < 80; $i++ ) {
+					$node = $img_nodes->item( $i );
+					if ( ! ( $node instanceof DOMElement ) || '' === $this->pick_image_sample_src( $node ) ) {
+						continue;
+					}
+					$score = $this->score_image_element( $node );
+					if ( $score < self::MIN_IMAGE_SCORE ) {
+						continue;
+					}
+					$this->add_item_inner_candidate( $candidates, $seen, 'image', 'eyecatch', $this->suggest_image_selector( $node, $item ), $score, count( $seen ) );
+				}
+			}
+
+			$link_nodes = crb_xpath_query( $xpath, './/a[@href]', $item );
+			if ( null !== $link_nodes ) {
+				for ( $i = 0; $i < $link_nodes->length && count( $candidates ) < 80; $i++ ) {
+					$node = $link_nodes->item( $i );
+					if ( ! ( $node instanceof DOMElement ) ) {
+						continue;
+					}
+					$href = trim( (string) $node->getAttribute( 'href' ) );
+					if ( '' === $href || '#' === $href || 0 === strpos( $href, 'javascript:' ) ) {
+						continue;
+					}
+					$score = $this->score_link_element( $node, 'link' );
+					if ( $score < self::MIN_LINK_SCORE ) {
+						continue;
+					}
+					$this->add_item_inner_candidate( $candidates, $seen, 'link', 'link', $this->suggest_generic_selector( $node, $item ), $score, count( $seen ) );
+				}
+			}
+
+			$text_nodes = crb_xpath_query( $xpath, './/p | .//dd | .//span | .//div[@class]', $item );
+			if ( null !== $text_nodes ) {
+				for ( $i = 0; $i < $text_nodes->length && count( $candidates ) < 80; $i++ ) {
+					$node = $text_nodes->item( $i );
+					if ( ! ( $node instanceof DOMElement ) ) {
+						continue;
+					}
+					$text = $this->node_text( $node );
+					if ( mb_strlen( $text ) < 6 ) {
+						continue;
+					}
+					$this->add_item_inner_candidate(
+						$candidates,
+						$seen,
+						'text',
+						'text',
+						$this->suggest_text_selector( $node, $item, strtolower( $node->tagName ) ),
+						min( 40, mb_strlen( $text ) ),
+						count( $seen )
+					);
+				}
+			}
+		}
+
+		return $this->score_item_inner_candidates( $xpath, $items, array_values( $candidates ) );
+	}
+
+	/**
+	 * @param array<string, array<string, mixed>> $candidates Candidate map.
+	 * @param array<string, bool>                 $seen       Seen selector map.
+	 * @param string                              $kind       Kind.
+	 * @param string                              $role       Role.
+	 * @param string                              $selector   Selector.
+	 * @param int                                 $priority   Base priority.
+	 * @param int                                 $order      Discovery order.
+	 */
+	private function add_item_inner_candidate( array &$candidates, array &$seen, $kind, $role, $selector, $priority, $order ) {
+		$selector = trim( (string) $selector );
+		if ( '' === $selector ) {
+			return;
+		}
+
+		$key = $kind . '|' . $selector;
+		if ( isset( $seen[ $key ] ) ) {
+			$candidates[ $key ]['priority'] = max( (int) $candidates[ $key ]['priority'], (int) $priority );
+			return;
+		}
+
+		$seen[ $key ]       = true;
+		$candidates[ $key ] = array(
+			'kind'        => $kind,
+			'role'        => $role,
+			'selector'    => $selector,
+			'count'       => 0,
+			'priority'    => (int) $priority,
+			'order'       => (int) $order,
+			'recommended' => false,
+			'samples'     => array(),
+		);
+	}
+
+	/**
+	 * Feed43 用に、候補セレクタが何件の item block で有効値を返すかを優先度へ反映。
+	 *
+	 * @param DOMXPath                         $xpath      XPath.
+	 * @param DOMNodeList                      $items      Item blocks.
+	 * @param array<int, array<string, mixed>> $candidates Candidate groups.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function score_item_inner_candidates( DOMXPath $xpath, DOMNodeList $items, array $candidates ) {
+		$total  = max( 1, (int) $items->length );
+		$groups = array();
+
+		foreach ( $candidates as $candidate ) {
+			$selector = trim( (string) ( $candidate['selector'] ?? '' ) );
+			if ( '' === $selector ) {
+				continue;
+			}
+			$query = crb_css_to_xpath( $selector );
+			if ( is_wp_error( $query ) ) {
+				continue;
+			}
+
+			$matched_blocks = 0;
+			$samples        = array();
+			$value_score    = 0;
+			$kind           = (string) ( $candidate['kind'] ?? '' );
+
+			for ( $item_index = 0; $item_index < $items->length; $item_index++ ) {
+				$item = $items->item( $item_index );
+				if ( ! ( $item instanceof DOMElement ) ) {
+					continue;
+				}
+				$nodes = crb_xpath_query( $xpath, $query, $item );
+				if ( null === $nodes || 0 === $nodes->length ) {
+					continue;
+				}
+				for ( $i = 0; $i < $nodes->length; $i++ ) {
+					$node = $nodes->item( $i );
+					if ( ! ( $node instanceof DOMElement ) ) {
+						continue;
+					}
+					$sample = $this->item_inner_sample_from_node( $kind, $node );
+					if ( empty( $sample ) ) {
+						continue;
+					}
+					++$matched_blocks;
+					$value_score = max( $value_score, $this->item_inner_value_score( $kind, $node ) );
+					if ( count( $samples ) < self::MAX_SAMPLES ) {
+						$samples[] = $sample;
+					}
+					break;
+				}
+			}
+
+			if ( $matched_blocks < 1 ) {
+				continue;
+			}
+
+			$match_rate               = $matched_blocks / $total;
+			$candidate['count']         = $matched_blocks;
+			$candidate['priority']      = max( (int) $candidate['priority'], $value_score ) + (int) round( $match_rate * 100 );
+			$candidate['match_rate']    = $match_rate;
+			$candidate['matched_items'] = $matched_blocks;
+			$candidate['total_items']   = $total;
+			$candidate['samples']       = $samples;
+			$groups[]                   = $candidate;
+		}
+
+		usort(
+			$groups,
+			static function ( $a, $b ) {
+				$pa = (int) ( $a['priority'] ?? 0 );
+				$pb = (int) ( $b['priority'] ?? 0 );
+				if ( $pa !== $pb ) {
+					return $pb <=> $pa;
+				}
+				$ra = (float) ( $a['match_rate'] ?? 0 );
+				$rb = (float) ( $b['match_rate'] ?? 0 );
+				if ( $ra !== $rb ) {
+					return $rb <=> $ra;
+				}
+				return (int) ( $a['order'] ?? 0 ) <=> (int) ( $b['order'] ?? 0 );
+			}
+		);
+
+		return array_slice( $groups, 0, 40 );
+	}
+
+	/**
+	 * @param string     $kind Kind.
+	 * @param DOMElement $node Node.
+	 * @return array<string, string>
+	 */
+	private function item_inner_sample_from_node( $kind, DOMElement $node ) {
+		if ( 'image' === $kind ) {
+			$src = $this->pick_image_sample_src( $node );
+			if ( '' === $src ) {
+				return array();
+			}
+			return array(
+				'src' => $this->truncate( $src, 120 ),
+				'alt' => $this->truncate( (string) $node->getAttribute( 'alt' ), 80 ),
+			);
+		}
+
+		if ( 'link' === $kind ) {
+			$href = trim( (string) $node->getAttribute( 'href' ) );
+			if ( '' === $href || '#' === $href || 0 === strpos( $href, 'javascript:' ) ) {
+				return array();
+			}
+			return array(
+				'href'  => $this->truncate( $href, 120 ),
+				'text'  => $this->truncate( $this->node_text( $node ), 80 ),
+				'title' => $this->truncate( (string) $node->getAttribute( 'title' ), 80 ),
+			);
+		}
+
+		$text = $this->node_text( $node );
+		if ( mb_strlen( $text ) < 6 ) {
 			return array();
 		}
+		return array( 'text' => $this->truncate( $text, 120 ) );
+	}
 
-		$groups = array();
-		$seen   = array();
-
-		$img_nodes = crb_xpath_query( $xpath, './/img[@src or @data-src or @data-original] | .//picture//img', $item );
-		if ( null !== $img_nodes ) {
-			for ( $i = 0; $i < $img_nodes->length && count( $groups ) < 15; $i++ ) {
-				$node = $img_nodes->item( $i );
-				if ( ! ( $node instanceof DOMElement ) ) {
-					continue;
-				}
-				$selector = $this->suggest_image_selector( $node, $item );
-				if ( isset( $seen[ $selector ] ) ) {
-					continue;
-				}
-				$seen[ $selector ] = true;
-				$src               = $this->pick_image_sample_src( $node );
-				$groups[]          = array(
-					'kind'        => 'image',
-					'role'        => 'eyecatch',
-					'selector'    => $selector,
-					'count'       => 1,
-					'priority'    => 60,
-					'recommended' => false,
-					'samples'     => array( array( 'src' => $this->truncate( $src, 120 ) ) ),
-				);
-			}
+	/**
+	 * @param string     $kind Kind.
+	 * @param DOMElement $node Node.
+	 * @return int
+	 */
+	private function item_inner_value_score( $kind, DOMElement $node ) {
+		if ( 'image' === $kind ) {
+			return $this->score_image_element( $node );
 		}
-
-		$link_nodes = crb_xpath_query( $xpath, './/a[@href]', $item );
-		if ( null !== $link_nodes ) {
-			for ( $i = 0; $i < $link_nodes->length && count( $groups ) < 25; $i++ ) {
-				$node = $link_nodes->item( $i );
-				if ( ! ( $node instanceof DOMElement ) ) {
-					continue;
-				}
-				$href = trim( (string) $node->getAttribute( 'href' ) );
-				if ( '' === $href || '#' === $href ) {
-					continue;
-				}
-				$selector = $this->suggest_generic_selector( $node, $item );
-				if ( isset( $seen[ $selector ] ) ) {
-					continue;
-				}
-				$seen[ $selector ] = true;
-				$groups[]        = array(
-					'kind'        => 'link',
-					'role'        => 'link',
-					'selector'    => $selector,
-					'count'       => 1,
-					'priority'    => 30,
-					'recommended' => false,
-					'samples'     => array(
-						array(
-							'href' => $this->truncate( $href, 120 ),
-							'text' => $this->truncate( $this->node_text( $node ), 80 ),
-						),
-					),
-				);
-			}
+		if ( 'link' === $kind ) {
+			return $this->score_link_element( $node, 'link' );
 		}
-
-		$text_nodes = crb_xpath_query( $xpath, './/p | .//dd | .//span | .//div[@class]', $item );
-		if ( null !== $text_nodes ) {
-			for ( $i = 0; $i < $text_nodes->length && count( $groups ) < 40; $i++ ) {
-				$node = $text_nodes->item( $i );
-				if ( ! ( $node instanceof DOMElement ) ) {
-					continue;
-				}
-				$text = $this->node_text( $node );
-				if ( mb_strlen( $text ) < 6 ) {
-					continue;
-				}
-				$tag      = strtolower( $node->tagName );
-				$selector = $this->suggest_text_selector( $node, $item, $tag );
-				if ( isset( $seen[ $selector ] ) ) {
-					continue;
-				}
-				$seen[ $selector ] = true;
-				$groups[]          = array(
-					'kind'        => 'text',
-					'role'        => 'text',
-					'selector'    => $selector,
-					'count'       => 1,
-					'priority'    => 15,
-					'recommended' => false,
-					'samples'     => array( array( 'text' => $this->truncate( $text, 120 ) ) ),
-				);
-			}
-		}
-
-		return $groups;
+		return min( 40, mb_strlen( $this->node_text( $node ) ) );
 	}
 
 	/**

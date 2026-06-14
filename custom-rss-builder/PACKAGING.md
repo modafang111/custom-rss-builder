@@ -43,6 +43,40 @@ python custom-rss-builder/custom-rss-builder/tools/verify_build_packages.py
 
 配布物の検証は ZIP ビルドと `verify_build_packages.py` を使います。
 
+## 正本ダウンロードページ（DLM）への client ZIP 配置
+
+お客様向け client ZIP は、正本サイト（123789.jp）の **既存 Download Monitor ページ** から配布します。
+
+| 項目 | 内容 |
+|------|------|
+| ダウンロードページ | `https://123789.jp/custom-rss-builder/download/695/` |
+| 実体 ZIP | `wp-content/uploads/dlm_uploads/.../custom-rss-builder-client.zip` |
+| パスワード | 正本 WP「CRB ライセンス設定」→ `mail_download_password` と **同一**（DLM 側のパスワード設定） |
+| メール挿入 URL | 同設定画面の `mail_download_url`（共通）にダウンロードページ URL を登録 |
+
+**ZIP 差し替えのみ**（client 本体の PHP 変更なし）のときは `CRB_BUILD_ID` は上げません。PluginTest への FTP デプロイも不要です。
+
+```bash
+# リポジトリルート（plugins/）で
+python build_plugin_dist.py
+python custom-rss-builder/custom-rss-builder/tools/verify_build_packages.py
+python tools/update_dlm_client_zip.py
+```
+
+`update_dlm_client_zip.py` は `dist/custom-rss-builder-client.zip` を DLM 上の実体とバイト比較し、差分があるときだけ FTP で上書きします。完了後、ブラウザでダウンロードページからパスワード入力 → ZIP 取得を確認してください。
+
+インストール手順固定ページへのダウンロードリンク追加は行いません（ダウンロードページと役割が重複するため）。
+
+### プラグイン削除とライセンス設定
+
+WordPress は **`uninstall.php` が無いと「削除」しても `wp_options` が残ります**。以前 Pro を有効化したサイトでは、ZIP を入れ直すだけで Pro のままになります。
+
+client ZIP には `uninstall.php` があり、削除時に `crb_license_settings` などを消します。**完全な初期状態で試す手順:** 無効化 → **削除** → 再インストール。
+
+### Chrome「安全でないダウンロードがブロックされました」
+
+HTTPS ページ上の Download Monitor ボタンが `http://` になると Chrome がブロックします。正本では `includes/functions-third-party-compat.php` が `home_url` / DLM リンクを https に補正します。それでも出る場合は WordPress「設定 → 一般」の **WordPress アドレス** と **サイトアドレス** を `https://` に直してください。
+
 ## バージョン管理（BUILD_ID / ロールバック）
 
 プラグインには **2種類の番号** があります。
