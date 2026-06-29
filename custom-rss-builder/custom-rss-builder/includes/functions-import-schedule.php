@@ -16,77 +16,15 @@ define( 'CRB_IMPORT_SCHEDULE_MIN_HOURS', 1 );
 define( 'CRB_IMPORT_SCHEDULE_MAX_HOURS', 168 );
 
 /**
- * 現在プランで許可される最短間隔（時間）。
+ * 現在プランで許可される自動取り込みの最短間隔（時間）。
  *
  * @return int
  */
-function crb_import_schedule_min_hours_for_plan() {
+function crb_import_schedule_plan_min_hours() {
 	if ( function_exists( 'crb_license_import_schedule_min_hours' ) ) {
 		return (int) crb_license_import_schedule_min_hours();
 	}
 	return (int) CRB_IMPORT_SCHEDULE_MIN_HOURS;
-}
-
-/**
- * 保存値・実行時に適用する有効間隔（0=オフ。1〜23 は無料などで繰り上げ）。
- *
- * @param int $hours Raw hours.
- * @return int
- */
-function crb_import_schedule_effective_hours( $hours ) {
-	$hours = crb_import_schedule_sanitize_hours( $hours );
-	if ( $hours <= 0 ) {
-		return 0;
-	}
-
-	$min = crb_import_schedule_min_hours_for_plan();
-	if ( $hours < $min ) {
-		return $min;
-	}
-
-	return $hours;
-}
-
-/**
- * @param string $schedule Stored schedule slug.
- * @return int Effective hours (0 = off).
- */
-function crb_import_schedule_effective_hours_from_slug( $schedule ) {
-	return crb_import_schedule_effective_hours(
-		crb_import_schedule_hours_from_slug( $schedule )
-	);
-}
-
-/**
- * 無料プラン（利用可）か。
- *
- * @return bool
- */
-function crb_import_schedule_is_free_usable_plan() {
-	if ( ! function_exists( 'crb_license_get_state' ) ) {
-		return false;
-	}
-	$state = crb_license_get_state();
-	return ! empty( $state['usable'] ) && 'free' === sanitize_key( (string) ( $state['plan'] ?? '' ) );
-}
-
-/**
- * フィード保存 POST から自動取り込み間隔（時間）を取得。0=オフ。
- *
- * @return int
- */
-function crb_import_schedule_hours_from_request() {
-	if ( crb_import_schedule_is_free_usable_plan() ) {
-		if ( empty( $_POST['import_schedule_auto'] ) ) {
-			return 0;
-		}
-		return defined( 'CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS' )
-			? (int) CRB_LICENSE_FREE_IMPORT_SCHEDULE_MIN_HOURS
-			: 24;
-	}
-
-	// phpcs:ignore WordPress.Security.NonceVerification.Missing
-	return crb_import_schedule_sanitize_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) );
 }
 
 /**
@@ -132,9 +70,9 @@ function crb_import_schedule_sanitize_hours( $hours ) {
  * @return string Schedule slug for storage.
  */
 function crb_import_schedule_slug_from_hours( $hours ) {
-	$hours = crb_import_schedule_effective_hours( $hours );
-	$min   = crb_import_schedule_min_hours_for_plan();
-	if ( $hours < $min ) {
+	$hours    = crb_import_schedule_sanitize_hours( $hours );
+	$plan_min = crb_import_schedule_plan_min_hours();
+	if ( $hours < $plan_min ) {
 		return 'off';
 	}
 	return 'crb_every_' . $hours . '_hours';
@@ -165,9 +103,9 @@ function crb_sanitize_import_schedule( $raw ) {
 		return 'off';
 	}
 	if ( preg_match( '/^crb_every_(\d+)_hours$/', $raw, $matches ) ) {
-		$hours = crb_import_schedule_effective_hours( (int) $matches[1] );
-		$min   = crb_import_schedule_min_hours_for_plan();
-		if ( $hours < $min ) {
+		$hours    = crb_import_schedule_sanitize_hours( (int) $matches[1] );
+		$plan_min = crb_import_schedule_plan_min_hours();
+		if ( $hours < $plan_min ) {
 			return 'off';
 		}
 		return 'crb_every_' . $hours . '_hours';
@@ -191,9 +129,9 @@ function crb_import_schedule_recurrence( $schedule ) {
  * @return string
  */
 function crb_import_schedule_label( $schedule ) {
-	$hours = crb_import_schedule_effective_hours_from_slug( $schedule );
-	$min   = crb_import_schedule_min_hours_for_plan();
-	if ( $hours < $min ) {
+	$hours    = crb_import_schedule_hours_from_slug( $schedule );
+	$plan_min = crb_import_schedule_plan_min_hours();
+	if ( $hours < $plan_min ) {
 		return __( 'オフ（手動のみ）', 'custom-rss-builder' );
 	}
 	return sprintf(
@@ -211,8 +149,7 @@ function crb_import_schedule_is_active( $import ) {
 	if ( empty( $import['enabled'] ) ) {
 		return false;
 	}
-	$hours = crb_import_schedule_effective_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
-	return $hours >= crb_import_schedule_min_hours_for_plan();
+	return crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) ) >= crb_import_schedule_plan_min_hours();
 }
 
 /**
@@ -444,7 +381,7 @@ function crb_sanitize_import_tag_id( $tag_id ) {
 }
 
 /**
- * 取り込み先タグ ID 一覧（保存用。UI は単一選択だが配列で保持）。
+ * 取り込み先タグ ID 一覧（レガシー移行用）。
  *
  * @param mixed $raw Raw value (array or scalar).
  * @return array<int, int>
@@ -461,31 +398,312 @@ function crb_sanitize_import_tag_ids( $raw ) {
 			$ids[] = $id;
 		}
 	}
-	$ids = array_values( array_unique( $ids ) );
-	if ( count( $ids ) > 1 ) {
-		$ids = array( $ids[0] );
+	return array_values( array_unique( $ids ) );
+}
+
+/**
+ * 取り込みタグ（tag_sources）が Pro で利用可能か。
+ *
+ * @return bool
+ */
+function crb_import_tag_sources_can_use() {
+	return function_exists( 'crb_license_can' ) && crb_license_can( 'import_tag_sources' );
+}
+
+/**
+ * 旧 tag_ids / tag_slot から tag_sources へ移行。
+ *
+ * @param array<string, mixed> $import Import settings.
+ * @return array<int, array<string, int|string>>
+ */
+function crb_import_tag_sources_from_legacy( array $import ) {
+	if ( ! empty( $import['tag_sources'] ) && is_array( $import['tag_sources'] ) ) {
+		return $import['tag_sources'];
 	}
-	return $ids;
+
+	$sources = array();
+	$tag_ids = isset( $import['tag_ids'] ) ? crb_sanitize_import_tag_ids( $import['tag_ids'] ) : array();
+	foreach ( $tag_ids as $term_id ) {
+		$sources[] = array(
+			'type'    => 'fixed',
+			'term_id' => (int) $term_id,
+		);
+	}
+
+	$slot = isset( $import['tag_slot'] ) ? crb_sanitize_import_tag_slot( $import['tag_slot'] ) : 0;
+	if ( $slot > 0 ) {
+		$sources[] = array(
+			'type' => 'slot',
+			'slot' => (int) $slot,
+		);
+	}
+
+	return $sources;
 }
 
 /**
- * POST から取り込みタグ ID を取得。
+ * 取り込み時にタグへ変換するスロット番号（0=無効、1={%1%}…）。
  *
- * @param mixed $raw $_POST['import_tag_id'] 等。
- * @return array<int, int>
+ * @param mixed $raw Raw value.
+ * @return int
  */
-function crb_import_tag_ids_from_request( $raw ) {
-	return crb_sanitize_import_tag_ids( $raw );
+function crb_sanitize_import_tag_slot( $raw ) {
+	$slot = max( 0, (int) $raw );
+	if ( $slot <= 0 ) {
+		return 0;
+	}
+	$max_slot = function_exists( 'crb_get_effective_slot_count' )
+		? (int) crb_get_effective_slot_count()
+		: (int) CRB_RECORD_SLOT_COUNT;
+	return min( $slot, max( 1, $max_slot ) );
 }
 
 /**
- * 取り込み設定用タグ選択（名前付きドロップダウン）。
+ * tag_sources 配列を正規化。
  *
- * @param mixed $selected_ids Selected term IDs（先頭1件を表示）。
+ * @param mixed $raw              Raw sources or legacy import row.
+ * @param bool  $enforce_license  false のとき表示用にライセンスチェックを省略。
+ * @return array<int, array{type:string,term_id?:int,slot?:int}>
  */
-function crb_render_import_tags_field( $selected_ids ) {
-	$selected_ids = crb_sanitize_import_tag_ids( $selected_ids );
-	$selected_id  = ! empty( $selected_ids ) ? (int) $selected_ids[0] : 0;
+function crb_sanitize_import_tag_sources( $raw, $enforce_license = true ) {
+	if ( $enforce_license && ! crb_import_tag_sources_can_use() ) {
+		return array();
+	}
+
+	if ( is_array( $raw ) && isset( $raw['tag_ids'] ) ) {
+		$raw = crb_import_tag_sources_from_legacy( $raw );
+	} elseif ( ! is_array( $raw ) ) {
+		$raw = array();
+	}
+
+	$sources    = array();
+	$seen_fixed = array();
+	$seen_slots = array();
+
+	foreach ( $raw as $item ) {
+		if ( ! is_array( $item ) ) {
+			continue;
+		}
+		$type = sanitize_key( (string) ( $item['type'] ?? '' ) );
+		if ( 'fixed' === $type ) {
+			$term_id = crb_sanitize_import_tag_id( $item['term_id'] ?? 0 );
+			if ( $term_id > 0 && ! isset( $seen_fixed[ $term_id ] ) ) {
+				$sources[]                 = array(
+					'type'    => 'fixed',
+					'term_id' => $term_id,
+				);
+				$seen_fixed[ $term_id ] = true;
+			}
+			continue;
+		}
+		if ( 'slot' === $type ) {
+			$slot = crb_sanitize_import_tag_slot( $item['slot'] ?? 0 );
+			if ( $slot > 0 && ! isset( $seen_slots[ $slot ] ) ) {
+				$sources[]               = array(
+					'type' => 'slot',
+					'slot' => $slot,
+				);
+				$seen_slots[ $slot ] = true;
+			}
+		}
+	}
+
+	return $sources;
+}
+
+/**
+ * POST から tag_sources を取得。
+ *
+ * @param mixed $fixed_raw Fixed term IDs.
+ * @param mixed $slot_raw  1-based slot numbers.
+ * @return array<int, array{type:string,term_id?:int,slot?:int}>
+ */
+function crb_import_tag_sources_from_request( $fixed_raw, $slot_raw ) {
+	if ( ! crb_import_tag_sources_can_use() ) {
+		return array();
+	}
+
+	$sources = array();
+	$fixed   = is_array( $fixed_raw ) ? $fixed_raw : array();
+	foreach ( $fixed as $term_id ) {
+		$term_id = crb_sanitize_import_tag_id( $term_id );
+		if ( $term_id > 0 ) {
+			$sources[] = array(
+				'type'    => 'fixed',
+				'term_id' => $term_id,
+			);
+		}
+	}
+
+	$slots = is_array( $slot_raw ) ? $slot_raw : array();
+	foreach ( $slots as $slot ) {
+		$slot = crb_sanitize_import_tag_slot( $slot );
+		if ( $slot > 0 ) {
+			$sources[] = array(
+				'type' => 'slot',
+				'slot' => $slot,
+			);
+		}
+	}
+
+	return crb_sanitize_import_tag_sources( $sources, true );
+}
+
+/**
+ * POST からスロット→タグ番号を取得（レガシー互換）。
+ *
+ * @param mixed $raw $_POST['import_tag_slot'] 等。
+ * @return int
+ */
+function crb_import_tag_slot_from_request( $raw ) {
+	return crb_sanitize_import_tag_slot( $raw );
+}
+
+/**
+ * 抽出行の指定スロットからタグ名候補を取得。
+ *
+ * @param array<int|string, string> $row         Slot row.
+ * @param int                       $slot_number 1-based slot ({%8%}=8).
+ * @return array<int, string>
+ */
+function crb_import_tag_names_from_row( array $row, $slot_number ) {
+	$slot_number = crb_sanitize_import_tag_slot( $slot_number );
+	if ( $slot_number <= 0 ) {
+		return array();
+	}
+	if ( function_exists( 'crb_is_named_record' ) && crb_is_named_record( $row ) ) {
+		$row = function_exists( 'crb_record_to_slot_row' ) ? crb_record_to_slot_row( $row ) : $row;
+	}
+	if ( ! function_exists( 'crb_is_slot_indexed_row' ) || ! crb_is_slot_indexed_row( $row ) ) {
+		return array();
+	}
+
+	$index = $slot_number - 1;
+	if ( ! isset( $row[ $index ] ) ) {
+		return array();
+	}
+
+	$raw = trim( wp_strip_all_tags( (string) $row[ $index ] ) );
+	if ( '' === $raw ) {
+		return array();
+	}
+
+	$parts = preg_split( '/[,、|\/・]+/u', $raw );
+	if ( ! is_array( $parts ) ) {
+		$parts = array( $raw );
+	}
+
+	$names = array();
+	foreach ( $parts as $part ) {
+		$name = sanitize_text_field( trim( (string) $part ) );
+		if ( '' === $name ) {
+			continue;
+		}
+		if ( function_exists( 'mb_substr' ) ) {
+			$name = mb_substr( $name, 0, 200 );
+		} else {
+			$name = substr( $name, 0, 200 );
+		}
+		$names[] = $name;
+	}
+
+	return array_values( array_unique( $names ) );
+}
+
+/**
+ * tag_sources から取り込み時に付与するタグ名一覧を生成。
+ *
+ * @param array<int, array{type:string,term_id?:int,slot?:int}> $sources tag_sources.
+ * @param array<int, string>                                   $row     Extracted row.
+ * @return array<int, string>
+ */
+function crb_import_tag_names_from_sources( array $sources, array $row ) {
+	$tag_names = array();
+
+	foreach ( crb_sanitize_import_tag_sources( $sources, false ) as $source ) {
+		$type = (string) ( $source['type'] ?? '' );
+		if ( 'fixed' === $type ) {
+			$term = get_term( (int) ( $source['term_id'] ?? 0 ), 'post_tag' );
+			if ( $term && ! is_wp_error( $term ) && '' !== trim( (string) $term->name ) ) {
+				$tag_names[] = (string) $term->name;
+			}
+			continue;
+		}
+		if ( 'slot' === $type ) {
+			$tag_names = array_merge(
+				$tag_names,
+				crb_import_tag_names_from_row( $row, (int) ( $source['slot'] ?? 0 ) )
+			);
+		}
+	}
+
+	return array_values( array_unique( array_filter( $tag_names ) ) );
+}
+
+/**
+ * tag_sources を投稿に付与（Pro 専用）。
+ *
+ * @param int                  $post_id Post ID.
+ * @param array<string, mixed> $import  Import settings.
+ * @param array<int, string>   $row     Extracted row.
+ */
+function crb_apply_import_tags_to_post( $post_id, array $import, array $row ) {
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 || ! crb_import_tag_sources_can_use() ) {
+		return;
+	}
+
+	$sources = isset( $import['tag_sources'] ) && is_array( $import['tag_sources'] )
+		? crb_sanitize_import_tag_sources( $import['tag_sources'], true )
+		: crb_sanitize_import_tag_sources(
+			crb_import_tag_sources_from_legacy( $import ),
+			true
+		);
+
+	$tag_names = crb_import_tag_names_from_sources( $sources, $row );
+	if ( empty( $tag_names ) ) {
+		return;
+	}
+
+	wp_set_post_tags( $post_id, $tag_names, false );
+}
+
+/**
+ * 取り込みタグ設定 UI（固定タグ＋スロット由来、Pro 専用）。
+ *
+ * @param array<int, array{type:string,term_id?:int,slot?:int}> $tag_sources Selected sources.
+ * @param array<string, mixed>                                 $feed_values Feed form values (css 等).
+ */
+function crb_render_import_tag_sources_field( array $tag_sources, array $feed_values ) {
+	$can         = crb_import_tag_sources_can_use();
+	$tag_sources = crb_sanitize_import_tag_sources( $tag_sources, false );
+	$fixed_ids   = array();
+	$slot_nums   = array();
+
+	foreach ( $tag_sources as $source ) {
+		if ( 'fixed' === (string) ( $source['type'] ?? '' ) ) {
+			$fixed_ids[] = (int) ( $source['term_id'] ?? 0 );
+		} elseif ( 'slot' === (string) ( $source['type'] ?? '' ) ) {
+			$slot_nums[] = (int) ( $source['slot'] ?? 0 );
+		}
+	}
+
+	$max_index = function_exists( 'crb_license_get_max_slot_index' )
+		? (int) crb_license_get_max_slot_index()
+		: ( ( defined( 'CRB_RECORD_SLOT_COUNT' ) ? (int) CRB_RECORD_SLOT_COUNT : 20 ) - 1 );
+
+	if ( ! $can ) {
+		echo '<div class="crb-import-tag-sources crb-import-tag-sources--locked">';
+		echo '<p class="description">';
+		echo esc_html(
+			function_exists( 'crb_license_denied_message' )
+				? crb_license_denied_message( 'import_tag_sources' )
+				: __( '取り込みタグ（固定・スロット由来）は Pro プラン専用です。', 'custom-rss-builder' )
+		);
+		echo '</p>';
+		echo '</div>';
+		return;
+	}
 
 	$terms = get_terms(
 		array(
@@ -497,34 +715,51 @@ function crb_render_import_tags_field( $selected_ids ) {
 		)
 	);
 
+	echo '<div class="crb-import-tag-sources">';
+
+	echo '<fieldset class="crb-import-tag-sources__group">';
+	echo '<legend>' . esc_html__( '固定タグ（常に付与）', 'custom-rss-builder' ) . '</legend>';
 	if ( is_wp_error( $terms ) ) {
 		echo '<p class="description">' . esc_html( $terms->get_error_message() ) . '</p>';
-		return;
-	}
-
-	echo '<select name="import_tag_id" id="crb-import-tag-id" class="crb-import-tag-select">';
-	printf(
-		'<option value="0"%s>%s</option>',
-		selected( 0, $selected_id, false ),
-		esc_html__( '— 指定しない —', 'custom-rss-builder' )
-	);
-
-	if ( empty( $terms ) ) {
-		echo '</select>';
+	} elseif ( empty( $terms ) ) {
 		echo '<p class="description">' . esc_html__( 'タグがありません。', 'custom-rss-builder' ) . '</p>';
-		return;
+	} else {
+		echo '<div class="crb-import-tag-sources__choices">';
+		foreach ( $terms as $term ) {
+			$term_id = (int) $term->term_id;
+			printf(
+				'<label class="crb-import-tag-sources__choice"><input type="checkbox" name="import_tag_sources_fixed[]" value="%1$d"%2$s> %3$s</label>',
+				$term_id,
+				checked( in_array( $term_id, $fixed_ids, true ), true, false ),
+				esc_html( (string) $term->name )
+			);
+		}
+		echo '</div>';
 	}
+	echo '</fieldset>';
 
-	foreach ( $terms as $term ) {
-		$id = (int) $term->term_id;
+	echo '<fieldset class="crb-import-tag-sources__group">';
+	echo '<legend>' . esc_html__( 'スロットから生成（記事ごと）', 'custom-rss-builder' ) . '</legend>';
+	echo '<div class="crb-import-tag-sources__choices">';
+	for ( $slot_index = 0; $slot_index <= $max_index; $slot_index++ ) {
+		if ( function_exists( 'crb_ai_transform_slot_is_link' )
+			&& crb_ai_transform_slot_is_link( array( 'css' => $feed_values['css'] ?? array() ), $slot_index ) ) {
+			continue;
+		}
+		$slot_number = $slot_index + 1;
+		$token       = function_exists( 'crb_slot_token' ) ? crb_slot_token( $slot_index ) : '{%' . $slot_number . '}';
 		printf(
-			'<option value="%d"%s>%s</option>',
-			$id,
-			selected( $selected_id, $id, false ),
-			esc_html( $term->name )
+			'<label class="crb-import-tag-sources__choice"><input type="checkbox" name="import_tag_sources_slot[]" value="%1$d"%2$s> <code>%3$s</code></label>',
+			$slot_number,
+			checked( in_array( $slot_number, $slot_nums, true ), true, false ),
+			esc_html( $token )
 		);
 	}
-	echo '</select>';
+	echo '</div>';
+	echo '<p class="description">' . esc_html__( 'リンク URL スロットは選択できません。カンマ・読点などで複数値が入っている場合は分割してタグ化します。', 'custom-rss-builder' ) . '</p>';
+	echo '</fieldset>';
+
+	echo '</div>';
 }
 
 /**

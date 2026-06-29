@@ -144,6 +144,9 @@ class CRB_License_Server_Admin {
 		);
 
 		crb_ls_update_settings( $patch );
+		if ( function_exists( 'crb_ls_sync_dlm_download_post_password' ) ) {
+			crb_ls_sync_dlm_download_post_password();
+		}
 	}
 
 	public function render_licenses_page() {

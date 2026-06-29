@@ -135,7 +135,7 @@ class Custom_RSS_Builder_Feed_Manager {
 			'content_template'    => '',
 			'append_source'       => false,
 			'category_id'         => 0,
-			'tag_ids'             => array(),
+			'tag_sources'         => array(),
 			'author_id'           => 0,
 		);
 	}
@@ -224,8 +224,15 @@ class Custom_RSS_Builder_Feed_Manager {
 			'category_id'         => function_exists( 'crb_sanitize_import_category_id' )
 				? crb_sanitize_import_category_id( $import['category_id'] ?? 0 )
 				: max( 0, (int) ( $import['category_id'] ?? 0 ) ),
-			'tag_ids'             => function_exists( 'crb_sanitize_import_tag_ids' )
-				? crb_sanitize_import_tag_ids( $import['tag_ids'] ?? array() )
+			'tag_sources'         => function_exists( 'crb_sanitize_import_tag_sources' )
+				? crb_sanitize_import_tag_sources(
+					! empty( $import['tag_sources'] ) && is_array( $import['tag_sources'] )
+						? $import['tag_sources']
+						: ( function_exists( 'crb_import_tag_sources_from_legacy' )
+							? crb_import_tag_sources_from_legacy( $import )
+							: array() ),
+					true
+				)
 				: array(),
 			'author_id'           => function_exists( 'crb_sanitize_import_author_id' )
 				? crb_sanitize_import_author_id( $import['author_id'] ?? 0 )

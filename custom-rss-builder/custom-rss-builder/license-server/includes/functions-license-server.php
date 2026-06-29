@@ -574,6 +574,50 @@ function crb_ls_maybe_upgrade_mail_defaults() {
 add_action( 'admin_init', 'crb_ls_maybe_upgrade_mail_defaults', 5 );
 
 /**
+ * 正本デプロイ後: DLM ダウンロード URL 既定値・投稿パスワードをライセンス設定と同期。
+ */
+function crb_ls_maybe_sync_dlm_download_boot() {
+	if ( ! function_exists( 'crb_license_is_authoritative_server' ) || ! crb_license_is_authoritative_server() ) {
+		return;
+	}
+
+	$build = defined( 'CRB_BUILD_ID' ) ? (string) CRB_BUILD_ID : '';
+	if ( '' === $build ) {
+		return;
+	}
+
+	$option_key = 'crb_ls_dlm_sync_build';
+	if ( $build === (string) get_option( $option_key, '' ) ) {
+		return;
+	}
+
+	$patch = array();
+	if ( '' === trim( crb_ls_get_option( 'mail_download_url', '' ) ) ) {
+		$patch['mail_download_url'] = crb_ls_default_mail_download_url();
+	}
+	if ( ! empty( $patch ) ) {
+		crb_ls_update_settings( $patch );
+	}
+
+	if ( function_exists( 'crb_ls_sync_dlm_download_post_password' ) ) {
+		crb_ls_sync_dlm_download_post_password();
+	}
+
+	update_option( $option_key, $build, false );
+}
+
+add_action( 'init', 'crb_ls_maybe_sync_dlm_download_boot', 20 );
+
+/**
+ * 正本サイトの client ZIP 配布ページ URL（DLM）。
+ *
+ * @return string
+ */
+function crb_ls_default_mail_download_url() {
+	return esc_url_raw( home_url( '/download/695/' ) );
+}
+
+/**
  * メール用プラグイン ZIP のダウンロード URL（プラン別上書き可）。
  *
  * @param string $plan free|pro
@@ -592,6 +636,10 @@ function crb_ls_mail_download_url( $plan = '' ) {
 		return $free;
 	}
 
+	if ( '' === $common ) {
+		$common = crb_ls_default_mail_download_url();
+	}
+
 	return $common;
 }
 
@@ -602,6 +650,62 @@ function crb_ls_mail_download_url( $plan = '' ) {
  */
 function crb_ls_mail_download_password() {
 	return (string) crb_ls_get_option( 'mail_download_password', '' );
+}
+
+/**
+ * client ZIP 用 DLM 投稿 ID（slug: custom-rss-builder）。
+ *
+ * @return int
+ */
+function crb_ls_client_dlm_download_post_id() {
+	static $resolved = null;
+	if ( null !== $resolved ) {
+		return (int) $resolved;
+	}
+
+	$resolved = 0;
+	$posts    = get_posts(
+		array(
+			'post_type'              => 'dlm_download',
+			'name'                   => 'custom-rss-builder',
+			'post_status'            => 'any',
+			'numberposts'            => 1,
+			'fields'                 => 'ids',
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
+		)
+	);
+	if ( ! empty( $posts ) ) {
+		$resolved = (int) $posts[0];
+	}
+
+	return (int) $resolved;
+}
+
+/**
+ * ライセンス設定のダウンロードパスワードを DLM 投稿（投稿パスワード）へ同期。
+ */
+function crb_ls_sync_dlm_download_post_password() {
+	if ( ! function_exists( 'crb_license_is_authoritative_server' ) || ! crb_license_is_authoritative_server() ) {
+		return;
+	}
+
+	$post_id = crb_ls_client_dlm_download_post_id();
+	if ( $post_id <= 0 ) {
+		return;
+	}
+
+	$post = get_post( $post_id );
+	if ( ! $post instanceof WP_Post || 'dlm_download' !== $post->post_type ) {
+		return;
+	}
+
+	wp_update_post(
+		array(
+			'ID'            => $post_id,
+			'post_password' => crb_ls_mail_download_password(),
+		)
+	);
 }
 
 /**

@@ -11,25 +11,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 $crb_import_disabled = ! empty( $crb_import_disabled );
 
 $schedule_hours      = 0;
-$schedule_plan_min   = function_exists( 'crb_import_schedule_min_hours_for_plan' )
-	? (int) crb_import_schedule_min_hours_for_plan()
-	: (int) ( defined( 'CRB_IMPORT_SCHEDULE_MIN_HOURS' ) ? CRB_IMPORT_SCHEDULE_MIN_HOURS : 1 );
-$crb_is_free_usable   = false;
-$crb_schedule_auto_on = false;
+$schedule_min_hours  = function_exists( 'crb_import_schedule_plan_min_hours' ) ? (int) crb_import_schedule_plan_min_hours() : 1;
 
-if ( function_exists( 'crb_import_schedule_effective_hours_from_slug' ) ) {
-	$schedule_hours = crb_import_schedule_effective_hours_from_slug( $values['import']['schedule'] ?? 'off' );
-} elseif ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
+if ( function_exists( 'crb_import_schedule_hours_from_slug' ) ) {
+
 	$schedule_hours = crb_import_schedule_hours_from_slug( $values['import']['schedule'] ?? 'off' );
-}
 
-if ( function_exists( 'crb_import_schedule_is_free_usable_plan' ) ) {
-	$crb_is_free_usable = crb_import_schedule_is_free_usable_plan();
-} elseif ( isset( $crb_license_state ) && is_array( $crb_license_state ) ) {
-	$crb_is_free_usable = ! empty( $crb_license_state['usable'] ) && 'free' === ( $crb_license_state['plan'] ?? '' );
 }
-
-$crb_schedule_auto_on = $schedule_hours > 0;
 
 ?>
 
@@ -64,67 +52,53 @@ $crb_schedule_auto_on = $schedule_hours > 0;
 
 		<td>
 
-			<?php if ( $crb_is_free_usable ) : ?>
-			<div class="crb-import-schedule-field crb-import-schedule-field--free">
-				<label>
-					<input
-						type="checkbox"
-						name="import_schedule_auto"
-						value="1"
-						<?php checked( $crb_schedule_auto_on ); ?>
-						<?php disabled( $crb_import_disabled ); ?>
-					>
-					<?php esc_html_e( '自動取り込みを行う', 'custom-rss-builder' ); ?>
-				</label>
-				<span class="crb-import-schedule-fixed" id="crb-import-schedule-hours">
-					<input
-						type="text"
-						class="small-text"
-						value="<?php echo esc_attr( (string) (int) $schedule_plan_min ); ?>"
-						disabled
-						readonly
-						tabindex="-1"
-						aria-label="<?php esc_attr_e( '自動取り込み間隔（時間）', 'custom-rss-builder' ); ?>"
-					>
-					<?php esc_html_e( '時間ごと', 'custom-rss-builder' ); ?>
-					<span class="description"><?php esc_html_e( '（無料プラン固定）', 'custom-rss-builder' ); ?></span>
-				</span>
-			</div>
-			<p class="description">
-				<?php
-				printf(
-					/* translators: %d: fixed hours on free plan */
-					esc_html__( '無料プランでは自動取り込みは %d 時間に1回固定です。オフにする場合は上のチェックを外してください。保存時に WordPress が自分へアクセスして取り込みを開始し、以降も同間隔で自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
-					(int) $schedule_plan_min
-				);
-				?>
-			</p>
-			<?php else : ?>
 			<label class="crb-import-schedule-field" for="crb-import-schedule-hours">
+
 				<input
+
 					type="number"
+
 					name="import_schedule_hours"
+
 					id="crb-import-schedule-hours"
+
 					class="small-text"
-					min="<?php echo esc_attr( (string) (int) $schedule_plan_min ); ?>"
+
+					min="<?php echo esc_attr( '0' ); ?>"
+
 					max="<?php echo esc_attr( (string) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 ) ); ?>"
+
 					step="1"
+
 					value="<?php echo esc_attr( (string) $schedule_hours ); ?>"
+
 					<?php disabled( $crb_import_disabled ); ?>
+
 				>
+
 				<?php esc_html_e( '時間ごと', 'custom-rss-builder' ); ?>
+
 			</label>
+
 			<p class="description">
+
 				<?php
+
 				printf(
-					/* translators: 1: min hours, 2: max hours */
-					esc_html__( '数字を入力（%1$d〜%2$d）。0 は自動オフ。%1$d 以上で保存時に WordPress が自分へアクセスして取り込みを開始し、以降も間隔ごとに自己アクセスします（OS cron 不要）。', 'custom-rss-builder' ),
-					(int) $schedule_plan_min,
+
+					/* translators: 1: min hours for current plan, 2: max hours */
+
+					esc_html__( '数字を入力（%1$d〜%2$d）。0 は自動オフ。%1$d 以上で保存時に WordPress が自分へアクセスして取り込みを開始し、以降も間隔ごとに自己アクセスします（OS cron 不要）。無料プランは最短 24 時間です。', 'custom-rss-builder' ),
+
+					(int) $schedule_min_hours,
+
 					(int) ( defined( 'CRB_IMPORT_SCHEDULE_MAX_HOURS' ) ? CRB_IMPORT_SCHEDULE_MAX_HOURS : 168 )
+
 				);
+
 				?>
+
 			</p>
-			<?php endif; ?>
 
 		</td>
 
@@ -164,20 +138,23 @@ $crb_schedule_auto_on = $schedule_hours > 0;
 				?>
 			</span>
 
-			<span class="crb-import-tag-field">
-				<span class="crb-import-tag-field__label"><?php esc_html_e( 'タグ', 'custom-rss-builder' ); ?></span>
+			<div class="crb-import-tag-sources-wrap">
+				<p class="crb-import-tag-sources-wrap__label">
+					<strong><?php esc_html_e( 'タグ（Pro）', 'custom-rss-builder' ); ?></strong>
+				</p>
 				<?php
-				if ( function_exists( 'crb_render_import_tags_field' ) ) {
-					crb_render_import_tags_field( $values['import']['tag_ids'] ?? array() );
-				} else {
-					?>
-					<select name="import_tag_id" id="crb-import-tag-id" class="crb-import-tag-select">
-						<option value="0"><?php esc_html_e( '— 指定しない —', 'custom-rss-builder' ); ?></option>
-					</select>
-					<?php
+				if ( function_exists( 'crb_render_import_tag_sources_field' ) ) {
+					crb_render_import_tag_sources_field(
+						is_array( $values['import']['tag_sources'] ?? null )
+							? $values['import']['tag_sources']
+							: ( function_exists( 'crb_import_tag_sources_from_legacy' )
+								? crb_import_tag_sources_from_legacy( $values['import'] ?? array() )
+								: array() ),
+						$values
+					);
 				}
 				?>
-			</span>
+			</div>
 
 			<span class="crb-import-author-field">
 				<span class="crb-import-author-field__label"><?php esc_html_e( '投稿者', 'custom-rss-builder' ); ?></span>
@@ -194,6 +171,7 @@ $crb_schedule_auto_on = $schedule_hours > 0;
 
 			<p class="description">
 				<?php esc_html_e( 'カテゴリー・タグは投稿タイプが post のときのみ適用されます。', 'custom-rss-builder' ); ?>
+				<?php esc_html_e( 'タグ（Pro）では固定タグとスロット由来タグをまとめて指定できます。', 'custom-rss-builder' ); ?>
 				<?php esc_html_e( '投稿者を「既定」のままにした場合、手動取り込みでは実行中のユーザー、自動取り込みでは管理者（ID 1）が著者になります。', 'custom-rss-builder' ); ?>
 			</p>
 

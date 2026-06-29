@@ -213,6 +213,10 @@ def main() -> int:
         fail("missing crb_import_schedule_hours_from_request()")
     else:
         ok("import schedule hours from request helper present")
+    if 'min="0"' not in imp_set or 'min="<?php echo esc_attr( (string) (int) $schedule_plan_min ); ?>"' in imp_set:
+        fail("pro import schedule input must allow 0 (min=0), not plan min only")
+    else:
+        ok("pro import schedule input min=0 (off allowed)")
 
     print()
     if FAIL:

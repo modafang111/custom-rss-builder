@@ -121,13 +121,8 @@ class Custom_RSS_Builder_Import_Scheduler {
 			if ( ! crb_import_schedule_is_active( $import ) ) {
 				continue;
 			}
-			$hours = function_exists( 'crb_import_schedule_effective_hours_from_slug' )
-				? crb_import_schedule_effective_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) )
-				: crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
-			$min = function_exists( 'crb_import_schedule_min_hours_for_plan' )
-				? crb_import_schedule_min_hours_for_plan()
-				: (int) CRB_IMPORT_SCHEDULE_MIN_HOURS;
-			if ( $hours < $min ) {
+			$hours = crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
+			if ( $hours < crb_import_schedule_plan_min_hours() ) {
 				continue;
 			}
 			$seconds = $hours * HOUR_IN_SECONDS;

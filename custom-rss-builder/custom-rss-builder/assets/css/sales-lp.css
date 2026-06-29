@@ -117,6 +117,27 @@
 	text-align: center;
 }
 
+.crb-sales-lp__hero-visual {
+	margin: 1.5rem auto 0;
+	max-width: 100%;
+}
+
+.crb-sales-lp__img {
+	display: block;
+	width: 100%;
+	height: auto;
+	border-radius: var(--crb-lp-radius);
+	border: 1px solid #e0e0e0;
+	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+}
+
+.crb-sales-lp__shot figcaption {
+	margin-top: 0.5rem;
+	font-size: 0.9rem;
+	color: var(--crb-lp-muted);
+	text-align: center;
+}
+
 .crb-sales-lp__section {
 	margin: 2.5rem 0;
 	padding-top: 0.5rem;

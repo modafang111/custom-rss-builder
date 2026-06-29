@@ -74,23 +74,29 @@ $values          = array(
 		'enabled'             => $is_post ? ! empty( $_POST['import_enabled'] ) : ! empty( $stored_import['enabled'] ),
 		'schedule'            => $is_post
 			? ( function_exists( 'crb_import_schedule_slug_from_hours' )
-				? crb_import_schedule_slug_from_hours(
-					function_exists( 'crb_import_schedule_hours_from_request' )
-						? crb_import_schedule_hours_from_request()
-						: wp_unslash( $_POST['import_schedule_hours'] ?? 0 )
-				)
+				? crb_import_schedule_slug_from_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) )
 				: 'off' )
 			: (string) ( $stored_import['schedule'] ?? 'off' ),
 		'post_status'         => $is_post ? sanitize_key( wp_unslash( $_POST['import_post_status'] ?? 'draft' ) ) : (string) $stored_import['post_status'],
 		'post_type'           => $is_post ? sanitize_key( wp_unslash( $_POST['import_post_type'] ?? 'post' ) ) : (string) $stored_import['post_type'],
 		'append_source'       => false,
 		'category_id'         => $is_post ? (int) ( $_POST['import_category_id'] ?? 0 ) : (int) $stored_import['category_id'],
-		'tag_ids'             => $is_post
-			? ( function_exists( 'crb_import_tag_ids_from_request' )
-				? crb_import_tag_ids_from_request( $_POST['import_tag_id'] ?? 0 )
+		'tag_sources'         => $is_post
+			? ( function_exists( 'crb_import_tag_sources_from_request' )
+				? crb_import_tag_sources_from_request(
+					$_POST['import_tag_sources_fixed'] ?? array(),
+					$_POST['import_tag_sources_slot'] ?? array()
+				)
 				: array() )
-			: ( function_exists( 'crb_sanitize_import_tag_ids' )
-				? crb_sanitize_import_tag_ids( $stored_import['tag_ids'] ?? array() )
+			: ( function_exists( 'crb_sanitize_import_tag_sources' )
+				? crb_sanitize_import_tag_sources(
+					! empty( $stored_import['tag_sources'] ) && is_array( $stored_import['tag_sources'] )
+						? $stored_import['tag_sources']
+						: ( function_exists( 'crb_import_tag_sources_from_legacy' )
+							? crb_import_tag_sources_from_legacy( $stored_import )
+							: array() ),
+					false
+				)
 				: array() ),
 		'author_id'           => $is_post ? (int) ( $_POST['import_author_id'] ?? 0 ) : (int) $stored_import['author_id'],
 		'post_title_template' => $is_post ? crb_get_import_template_from_post( 'import_post_title_template' ) : (string) ( $stored_import['post_title_template'] ?? '' ),
@@ -300,30 +306,28 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 				<?php elseif ( ! empty( $crb_license_state['usable'] ) && 'standard' === ( $crb_license_state['plan'] ?? '' ) ) : ?>
 					<p class="description">
 						<?php
-						$crb_standard_slot_max   = defined( 'CRB_LICENSE_STANDARD_SLOT_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_SLOT_LIMIT : 5;
-						$crb_standard_feed_limit = defined( 'CRB_LICENSE_STANDARD_FEED_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_FEED_LIMIT : 3;
-						$crb_standard_slot_range = function_exists( 'crb_license_format_slot_range_text' )
-							? crb_license_format_slot_range_text( $crb_standard_slot_max )
-							: (string) $crb_standard_slot_max;
+						$crb_std_slot_count = defined( 'CRB_LICENSE_STANDARD_SLOT_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_SLOT_LIMIT : 5;
+						$crb_std_slot_range = function_exists( 'crb_license_format_slot_range_text' )
+							? crb_license_format_slot_range_text( $crb_std_slot_count )
+							: (string) $crb_std_slot_count;
 						printf(
-							/* translators: 1: standard slot range, 2: max feeds */
-							esc_html__( '現在のプラン（スタンダード）: スロット %1$s、フィード数 %2$d 件まで。', 'custom-rss-builder' ),
-							esc_html( $crb_standard_slot_range ),
-							$crb_standard_feed_limit
+							/* translators: 1: standard slot range text, 2: feed limit */
+							esc_html__( '現在のプラン（スタンダード）: スロット %1$s、フィード %2$d 件まで。', 'custom-rss-builder' ),
+							esc_html( $crb_std_slot_range ),
+							defined( 'CRB_LICENSE_STANDARD_FEED_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_FEED_LIMIT : 3
 						);
 						?>
 					</p>
 				<?php elseif ( ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' ) ) : ?>
 					<p class="description">
 						<?php
-						$crb_pro_slot_max   = function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20;
-						$crb_pro_feed_limit = defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10;
+						$crb_pro_slot_max = function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20;
 						printf(
-							/* translators: 1: first slot token, 2: max slot token, 3: max feeds */
-							esc_html__( '現在のプラン（Pro）: スロット %1$s〜%2$s、フィード数 %3$d 件まで。', 'custom-rss-builder' ),
+							/* translators: 1: first slot token, 2: max slot token, 3: feed limit */
+							esc_html__( '現在のプラン（Pro）: スロット %1$s〜%2$s、フィード %3$d 件まで。', 'custom-rss-builder' ),
 							'{%1%}',
 							'{%' . $crb_pro_slot_max . '%}',
-							$crb_pro_feed_limit
+							defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10
 						);
 						?>
 					</p>
@@ -512,12 +516,11 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 		</p>
 	<?php endif; ?>
 	<?php
-	$crb_is_paid_setup_usable = ! empty( $crb_license_state['usable'] )
-		&& in_array( (string) ( $crb_license_state['plan'] ?? '' ), array( 'standard', 'pro' ), true );
+	$crb_is_pro_usable = ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' );
 	?>
-	<?php if ( $crb_is_paid_setup_usable ) : ?>
+	<?php if ( $crb_is_pro_usable ) : ?>
 		<p class="crb-feed-pack-pro-setup description">
-			<?php esc_html_e( '初期設定代行: 最初の 1 フィードは無料。JSON を受け取ったら下の「設定をインポート」から反映できます。', 'custom-rss-builder' ); ?>
+			<?php esc_html_e( 'Pro 初期設定代行: 最初の 1 フィードは無料。JSON を受け取ったら下の「設定をインポート」から反映できます。', 'custom-rss-builder' ); ?>
 			<?php if ( '' !== $crb_feed_pack_manual_url ) : ?>
 				<?php
 				echo ' ';

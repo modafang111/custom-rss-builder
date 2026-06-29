@@ -26,6 +26,19 @@ def main() -> int:
     else:
         print("OK   dlm-reports-app stub registered early")
 
+    if "crb_compat_dlm_download_template" not in compat or "crb_compat_wp_die_handler" not in compat:
+        print("FAIL compat missing dlm download template/wp_die fixes")
+        fail += 1
+    else:
+        print("OK   dlm download page compat present")
+
+    ls = (ROOT / "license-server" / "includes" / "functions-license-server.php").read_text(encoding="utf-8")
+    if "crb_ls_sync_dlm_download_post_password" not in ls:
+        print("FAIL license-server missing DLM password sync")
+        fail += 1
+    else:
+        print("OK   license-server DLM password sync present")
+
     print(f"\n{'FAIL' if fail else 'PASS'} ({fail} failures)")
     return 1 if fail else 0
 

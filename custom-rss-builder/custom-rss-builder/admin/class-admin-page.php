@@ -964,11 +964,7 @@ class Custom_RSS_Builder_Admin_Page {
 			'import'           => array(
 				'enabled'             => $import_enabled,
 				'schedule'            => function_exists( 'crb_import_schedule_slug_from_hours' )
-					? crb_import_schedule_slug_from_hours(
-						function_exists( 'crb_import_schedule_hours_from_request' )
-							? crb_import_schedule_hours_from_request()
-							: wp_unslash( $_POST['import_schedule_hours'] ?? 0 )
-					)
+					? crb_import_schedule_slug_from_hours( wp_unslash( $_POST['import_schedule_hours'] ?? 0 ) )
 					: 'off',
 				'post_status'         => sanitize_key( wp_unslash( $_POST['import_post_status'] ?? 'draft' ) ),
 				'post_type'           => sanitize_key( wp_unslash( $_POST['import_post_type'] ?? 'post' ) ),
@@ -976,8 +972,11 @@ class Custom_RSS_Builder_Admin_Page {
 				'content_template'    => crb_get_import_template_from_post( 'import_content_template' ),
 				'append_source'       => false,
 				'category_id'         => (int) ( $_POST['import_category_id'] ?? 0 ),
-				'tag_ids'             => function_exists( 'crb_import_tag_ids_from_request' )
-					? crb_import_tag_ids_from_request( $_POST['import_tag_id'] ?? 0 )
+				'tag_sources'         => function_exists( 'crb_import_tag_sources_from_request' )
+					? crb_import_tag_sources_from_request(
+						$_POST['import_tag_sources_fixed'] ?? array(),
+						$_POST['import_tag_sources_slot'] ?? array()
+					)
 					: array(),
 				'author_id'           => (int) ( $_POST['import_author_id'] ?? 0 ),
 			),

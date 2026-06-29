@@ -269,22 +269,57 @@
 .crb-import-post-status-field select,
 .crb-import-category-field .crb-import-category-select,
 .crb-import-category-field select,
-.crb-import-tag-field .crb-import-tag-select,
-.crb-import-tag-field select,
 .crb-import-author-field .crb-import-author-select,
 .crb-import-author-field select {
 	min-width: 14em;
 	max-width: 100%;
 }
 
-.crb-import-tag-field,
+.crb-import-tag-sources-wrap {
+	display: block;
+	margin: 12px 0 8px;
+}
+
+.crb-import-tag-sources-wrap__label {
+	margin: 0 0 8px;
+}
+
+.crb-import-tag-sources {
+	margin: 0;
+}
+
+.crb-import-tag-sources__group {
+	margin: 0 0 12px;
+	padding: 10px 12px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+}
+
+.crb-import-tag-sources__group legend {
+	font-weight: 600;
+	padding: 0 4px;
+}
+
+.crb-import-tag-sources__choices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1rem;
+	margin: 0;
+}
+
+.crb-import-tag-sources__choice {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
 .crb-import-author-field {
 	display: inline-block;
 	margin: 0 20px 8px 0;
 	vertical-align: top;
 }
 
-.crb-import-tag-field__label,
 .crb-import-author-field__label {
 	display: block;
 	margin-bottom: 4px;
@@ -863,25 +898,6 @@
 	width: 5em;
 }
 
-.crb-import-schedule-field--free {
-	flex-wrap: wrap;
-	gap: 10px 12px;
-}
-
-.crb-import-schedule-field--free .crb-import-schedule-fixed {
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	color: #646970;
-}
-
-.crb-import-schedule-field--free .crb-import-schedule-fixed input[disabled] {
-	width: 5em;
-	background: #f0f0f1;
-	color: #50575e;
-	cursor: not-allowed;
-}
-
 .crb-form-footer {
 	position: sticky;
 	bottom: 0;
@@ -1109,9 +1125,32 @@
 	color: #1d2327;
 }
 
+.crb-license-plan-badge--standard {
+	background: #f6f7f7;
+	color: #1d2327;
+	border: 1px solid #c3c4c7;
+}
+
 .crb-license-plan-badge--pro {
 	background: #2271b1;
 	color: #fff;
+}
+
+.crb-panel--paid-plans-cta .crb-paid-plan-cta {
+	margin-bottom: 16px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid #dcdcde;
+}
+
+.crb-panel--paid-plans-cta .crb-paid-plan-cta:last-of-type {
+	margin-bottom: 0;
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.crb-panel--paid-plans-cta .crb-paid-plan-cta h3 {
+	margin: 0 0 8px;
+	font-size: 14px;
 }
 
 .crb-license-key {

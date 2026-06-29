@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_SALES_LP_VERSION', '2' );
+define( 'CRB_SALES_LP_VERSION', '3' );
 define( 'CRB_SALES_LP_OPTION_PAGE_ID', 'crb_sales_lp_page_id' );
 
 /**
@@ -118,6 +118,48 @@ function crb_sales_lp_pro_payment_url() {
 }
 
 /**
+ * @param string $filename Basename under assets/images/lp/.
+ * @return string
+ */
+function crb_sales_lp_image_url( $filename ) {
+	$filename = ltrim( (string) $filename, '/' );
+	if ( '' === $filename || ! defined( 'CRB_PLUGIN_FILE' ) ) {
+		return '';
+	}
+	return (string) plugins_url( 'assets/images/lp/' . $filename, CRB_PLUGIN_FILE );
+}
+
+/**
+ * @param string $filename Image basename.
+ * @param string $alt      Alt text.
+ * @return string HTML img tag or empty.
+ */
+function crb_sales_lp_image_tag( $filename, $alt ) {
+	$url = crb_sales_lp_image_url( $filename );
+	if ( '' === $url ) {
+		return '';
+	}
+
+	$attrs = '';
+	if ( defined( 'CRB_PLUGIN_DIR' ) ) {
+		$path = CRB_PLUGIN_DIR . 'assets/images/lp/' . ltrim( (string) $filename, '/' );
+		if ( is_readable( $path ) ) {
+			$size = @getimagesize( $path );
+			if ( is_array( $size ) ) {
+				$attrs = sprintf( ' width="%d" height="%d"', (int) $size[0], (int) $size[1] );
+			}
+		}
+	}
+
+	return sprintf(
+		'<img class="crb-sales-lp__img" src="%s" alt="%s" loading="lazy" decoding="async"%s />',
+		esc_url( $url ),
+		esc_attr( $alt ),
+		$attrs
+	);
+}
+
+/**
  * @return array<int, array{label:string, free:string, pro:string}>
  */
 function crb_sales_lp_plan_rows() {
@@ -152,9 +194,17 @@ function crb_sales_lp_build_page_content() {
 	}
 	$lines[] = '</div>';
 	$lines[] = '<p class="crb-sales-lp__hero-note">' . esc_html__( '無料プランあり · クレジットカード不要 · お手持ちの WordPress にインストール', 'custom-rss-builder' ) . '</p>';
-	$lines[] = '<div class="crb-sales-lp__hero-visual crb-sales-lp__placeholder" aria-hidden="true">';
-	$lines[] = '<span>' . esc_html__( '＜ここへヒーロー用の製品イメージ画像＞', 'custom-rss-builder' ) . '</span>';
-	$lines[] = '</div>';
+	$hero_img = crb_sales_lp_image_tag(
+		'lp-hero-feed-edit.png',
+		__( 'フィード編集画面（範囲・スロット設定）', 'custom-rss-builder' )
+	);
+	if ( '' !== $hero_img ) {
+		$lines[] = '<div class="crb-sales-lp__hero-visual">' . $hero_img . '</div>';
+	} else {
+		$lines[] = '<div class="crb-sales-lp__hero-visual crb-sales-lp__placeholder" aria-hidden="true">';
+		$lines[] = '<span>' . esc_html__( '＜ここへヒーロー用の製品イメージ画像＞', 'custom-rss-builder' ) . '</span>';
+		$lines[] = '</div>';
+	}
 	$lines[] = '</header>';
 
 	// Pain points.
@@ -200,17 +250,34 @@ function crb_sales_lp_build_page_content() {
 	$lines[] = '</div>';
 	$lines[] = '</section>';
 
-	// Screenshots placeholders.
+	// Screenshots.
 	$lines[] = '<section class="crb-sales-lp__section" id="crb-lp-screenshots">';
 	$lines[] = '<h2>' . esc_html__( '画面イメージ', 'custom-rss-builder' ) . '</h2>';
 	$lines[] = '<div class="crb-sales-lp__shots">';
 	$shots = array(
-		__( '＜ここへフィード編集画面（範囲取得・スロット設定）のスクリーンショット＞', 'custom-rss-builder' ),
-		__( '＜ここへプレビュー結果（抽出データ一覧）のスクリーンショット＞', 'custom-rss-builder' ),
-		__( '＜ここへ RSS 配信 URL を開いた画面のスクリーンショット＞', 'custom-rss-builder' ),
+		array(
+			'file'    => 'lp-shot-preview.png',
+			'caption' => __( 'プレビュー結果（抽出データ一覧）', 'custom-rss-builder' ),
+		),
+		array(
+			'file'    => 'lp-shot-rss.png',
+			'caption' => __( 'RSS 配信 URL をブラウザで表示', 'custom-rss-builder' ),
+		),
+		array(
+			'file'    => 'lp-shot-imported.png',
+			'caption' => __( 'WordPress へ取り込んだレビュー記事', 'custom-rss-builder' ),
+		),
 	);
 	foreach ( $shots as $shot ) {
-		$lines[] = '<figure class="crb-sales-lp__shot crb-sales-lp__placeholder"><span>' . esc_html( $shot ) . '</span></figure>';
+		$img = crb_sales_lp_image_tag( $shot['file'], $shot['caption'] );
+		if ( '' === $img ) {
+			$lines[] = '<figure class="crb-sales-lp__shot crb-sales-lp__placeholder"><span>' . esc_html( $shot['caption'] ) . '</span></figure>';
+			continue;
+		}
+		$lines[] = '<figure class="crb-sales-lp__shot">';
+		$lines[] = $img;
+		$lines[] = '<figcaption>' . esc_html( $shot['caption'] ) . '</figcaption>';
+		$lines[] = '</figure>';
 	}
 	$lines[] = '</div>';
 	$lines[] = '</section>';

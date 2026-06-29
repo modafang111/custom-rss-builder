@@ -166,13 +166,8 @@ class Custom_RSS_Builder_Import_Loopback {
 			return false;
 		}
 
-		$hours = function_exists( 'crb_import_schedule_effective_hours_from_slug' )
-			? crb_import_schedule_effective_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) )
-			: crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
-		$min = function_exists( 'crb_import_schedule_min_hours_for_plan' )
-			? crb_import_schedule_min_hours_for_plan()
-			: (int) CRB_IMPORT_SCHEDULE_MIN_HOURS;
-		if ( $hours < $min ) {
+		$hours = crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
+		if ( $hours < crb_import_schedule_plan_min_hours() ) {
 			return false;
 		}
 
@@ -203,13 +198,8 @@ class Custom_RSS_Builder_Import_Loopback {
 			if ( ! crb_import_schedule_is_active( $import ) ) {
 				continue;
 			}
-			$hours = function_exists( 'crb_import_schedule_effective_hours_from_slug' )
-				? crb_import_schedule_effective_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) )
-				: crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
-			$min = function_exists( 'crb_import_schedule_min_hours_for_plan' )
-				? crb_import_schedule_min_hours_for_plan()
-				: (int) CRB_IMPORT_SCHEDULE_MIN_HOURS;
-			if ( $hours < $min ) {
+			$hours = crb_import_schedule_hours_from_slug( (string) ( $import['schedule'] ?? 'off' ) );
+			if ( $hours < crb_import_schedule_plan_min_hours() ) {
 				continue;
 			}
 			$seconds = $hours * HOUR_IN_SECONDS;
@@ -225,10 +215,7 @@ class Custom_RSS_Builder_Import_Loopback {
 	 * @param int $delay_seconds Delay before next tick.
 	 */
 	private function schedule_next_ping( $delay_seconds ) {
-		$plan_min        = function_exists( 'crb_import_schedule_min_hours_for_plan' )
-			? crb_import_schedule_min_hours_for_plan()
-			: (int) CRB_IMPORT_SCHEDULE_MIN_HOURS;
-		$delay_seconds = max( (int) $plan_min * HOUR_IN_SECONDS, (int) $delay_seconds );
+		$delay_seconds = max( (int) crb_import_schedule_plan_min_hours() * HOUR_IN_SECONDS, (int) $delay_seconds );
 		$run_at        = time() + $delay_seconds;
 
 		update_option( 'crb_loopback_next_at', $run_at, false );

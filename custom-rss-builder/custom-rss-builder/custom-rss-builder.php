@@ -1,12 +1,10 @@
 <?php
 
 /**
-
  * Plugin Name: Custom RSS Builder
 
  * Plugin URI:  https://example.com/custom-rss-builder
-
- * Description: RSS非対応WebページからFeed43風パターンで抽出し、RSS 2.0フィードを配信。抽出結果をWordPress投稿へ取り込み可能。
+ * Description: RSS・投稿取り込みクライアント（ライセンスは正本サーバーへ REST 接続）。
 
  * Version:     0.9.0
 
@@ -38,7 +36,11 @@ define( 'CRB_VERSION', '0.9.0' );
 
 /** デプロイごとに更新（管理画面 JS/CSS のバージョン用） */
 
-define( 'CRB_BUILD_ID', '20260611g' );
+define( 'CRB_PACKAGE_VARIANT', 'client' );
+define( 'CRB_BUILD_ID', '20260629a' );
+define( 'CRB_LICENSE_DEFAULT_CLIENT_API_BASE', 'https://123789.jp/custom-rss-builder' );
+define( 'CRB_LICENSE_API_BASE', 'https://123789.jp/custom-rss-builder' );
+define( 'CRB_LICENSE_API_SECRET', '1FzSLnhpDzwXMo5LF1Z2XfV40o6PIja1' );
 
 define( 'CRB_PLUGIN_FILE', __FILE__ );
 
@@ -62,7 +64,6 @@ require_once CRB_PLUGIN_DIR . 'includes/functions-demo-samples.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-ai-manual.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-install-manual.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-feed-pack-manual.php';
-require_once CRB_PLUGIN_DIR . 'includes/functions-sales-lp.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-third-party-compat.php';
 
 if ( crb_is_client_app_enabled() ) {

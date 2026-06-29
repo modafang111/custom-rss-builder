@@ -244,14 +244,8 @@ class Custom_RSS_Builder_Post_Importer {
 			wp_set_post_categories( (int) $post_id, array( $category_id ), false );
 		}
 
-		$tag_ids = isset( $import['tag_ids'] ) && is_array( $import['tag_ids'] )
-			? $import['tag_ids']
-			: array();
-		if ( function_exists( 'crb_sanitize_import_tag_ids' ) ) {
-			$tag_ids = crb_sanitize_import_tag_ids( $tag_ids );
-		}
-		if ( ! empty( $tag_ids ) && 'post' === $post_type ) {
-			wp_set_post_tags( (int) $post_id, $tag_ids, false );
+		if ( 'post' === $post_type && function_exists( 'crb_apply_import_tags_to_post' ) ) {
+			crb_apply_import_tags_to_post( (int) $post_id, $import, $row );
 		}
 
 		return 'created';

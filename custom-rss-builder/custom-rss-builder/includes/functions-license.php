@@ -1216,6 +1216,7 @@ function crb_license_can( $feature ) {
 			case 'save':
 				return $feed_count <= (int) CRB_LICENSE_PRO_FEED_LIMIT;
 			case 'ai_transform':
+			case 'import_tag_sources':
 				return true;
 			default:
 				return true;
@@ -1230,6 +1231,7 @@ function crb_license_can( $feature ) {
 			case 'save':
 				return $feed_count <= (int) CRB_LICENSE_STANDARD_FEED_LIMIT;
 			case 'ai_transform':
+			case 'import_tag_sources':
 				return false;
 			default:
 				return true;
@@ -1244,6 +1246,7 @@ function crb_license_can( $feature ) {
 		case 'create_feed':
 			return crb_license_feed_count() < (int) CRB_LICENSE_FREE_FEED_LIMIT;
 		case 'ai_transform':
+		case 'import_tag_sources':
 			return false;
 		case 'rss':
 		case 'discover':
@@ -1390,6 +1393,8 @@ function crb_license_denied_message( $feature ) {
 			);
 		case 'ai_transform':
 			return __( 'AI テキスト変換は Pro プラン専用です。Gemini API キーはライセンス画面で設定してください。', 'custom-rss-builder' );
+		case 'import_tag_sources':
+			return __( '取り込みタグ（固定・スロット由来）は Pro プラン専用です。', 'custom-rss-builder' );
 		default:
 			return __( 'この操作は現在のプランでは利用できません。', 'custom-rss-builder' );
 	}
@@ -1604,6 +1609,12 @@ function crb_license_plan_comparison_rows() {
 			'free'     => '—',
 			'standard' => '—',
 			'pro'      => __( '○（Gemini API キー要・BYOK）', 'custom-rss-builder' ),
+		),
+		array(
+			'label'    => __( '取り込みタグ（固定・スロット）', 'custom-rss-builder' ),
+			'free'     => '—',
+			'standard' => '—',
+			'pro'      => '○',
 		),
 		array(
 			'label'    => __( '初期設定代行', 'custom-rss-builder' ),
