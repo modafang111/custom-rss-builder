@@ -1,0 +1,7 @@
+{
+  "host": "ftp.example.com",
+  "user": "your-ftp-user",
+  "password": "your-password",
+  "remote_path": "/public_html/wp-content/plugins/custom-rss-builder",
+  "port": 21
+}

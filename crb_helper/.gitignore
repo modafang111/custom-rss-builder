@@ -1,0 +1,12 @@
+﻿# secrets / live pulls
+env/*.local.json
+env/wp.local.json
+site_snapshot/
+*.log
+__pycache__/
+.DS_Store
+Thumbs.db
+
+# 本体ツリーの重複スナップショット（正本は ../custom-rss-builder/）
+reference/custom-rss-builder/
+reference/*.zip

@@ -1,0 +1,8 @@
+﻿{
+  "site_url": "https://wordpress-123.com/PluginTest",
+  "rest_user": "blog2@wordpress-123.com",
+  "rest_app_password": "REPLACE_ME",
+  "wp_user_login": "blog2",
+  "wp_user_id": 3,
+  "role": "administrator"
+}
