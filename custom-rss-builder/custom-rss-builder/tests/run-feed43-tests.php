@@ -25,7 +25,38 @@ if ( ! class_exists( 'WP_Error' ) ) {
 	}
 }
 
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ) {
+		return $thing instanceof WP_Error;
+	}
+}
+
+if ( ! function_exists( 'sanitize_key' ) ) {
+	function sanitize_key( $key ) {
+		return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) );
+	}
+}
+
+if ( ! function_exists( 'trailingslashit' ) ) {
+	function trailingslashit( $value ) {
+		return rtrim( (string) $value, '/\\' ) . '/';
+	}
+}
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return parse_url( (string) $url, $component );
+	}
+}
+
+if ( ! function_exists( 'esc_url_raw' ) ) {
+	function esc_url_raw( $url ) {
+		return trim( (string) $url );
+	}
+}
+
 $base = dirname( __DIR__ );
+require_once $base . '/includes/functions-sanitize.php';
 require_once $base . '/includes/functions-css.php';
 require_once $base . '/includes/functions-feed43.php';
 require_once $base . '/includes/class-css-extractor.php';
