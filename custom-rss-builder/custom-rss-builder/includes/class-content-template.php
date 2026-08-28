@@ -38,7 +38,12 @@ class Custom_RSS_Builder_Content_Template {
 			$output = str_replace( $key, $replacements[ $key ], $output );
 		}
 
-		return wp_kses_post( $output );
+		/**
+		 * 本文テンプレート展開後（{%n} 置換済み）。CRB ID Split 等が {{duga_*:ID}} を処理する。
+		 *
+		 * @param string $output Rendered HTML.
+		 */
+		return apply_filters( 'crb_content_template_rendered', wp_kses_post( $output ) );
 	}
 
 	/**
@@ -60,7 +65,8 @@ class Custom_RSS_Builder_Content_Template {
 			return '';
 		}
 
-		$output = $template;
+		// {%11} 内の %1 を先に食わないよう、トークンは長い順に置換（本文 render() と同方針）。
+		$replacements = array();
 		foreach ( $row as $index => $value ) {
 			if ( ! is_int( $index ) && ! ctype_digit( (string) $index ) ) {
 				continue;
@@ -68,13 +74,23 @@ class Custom_RSS_Builder_Content_Template {
 			$idx  = (int) $index;
 			$safe = esc_html( trim( (string) $value ) );
 			$n    = $idx + 1;
-			$output = str_replace(
-				array( '{%' . $n . '}', '%' . $n, '{{' . $idx . '}}' ),
-				$safe,
-				$output
-			);
+			$replacements[ '{%' . $n . '}' ]      = $safe;
+			$replacements[ '%' . $n ]             = $safe;
+			$replacements[ '{{' . $idx . '}}' ]   = $safe;
 		}
-		return $output;
+		$keys = array_keys( $replacements );
+		usort(
+			$keys,
+			static function ( $a, $b ) {
+				return strlen( $b ) - strlen( $a );
+			}
+		);
+
+		$output = $template;
+		foreach ( $keys as $key ) {
+			$output = str_replace( $key, $replacements[ $key ], $output );
+		}
+		return apply_filters( 'crb_content_template_rendered', $output );
 	}
 
 	/**

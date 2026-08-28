@@ -588,7 +588,8 @@ function crb_import_tag_names_from_row( array $row, $slot_number ) {
 		return array();
 	}
 
-	$parts = preg_split( '/[,、|\/・]+/u', $raw );
+	// 中黒（・）は DLsite 作品形式名の一部になりうるため、区切りに含めない。
+	$parts = preg_split( '/[,、|\/]+/u', $raw );
 	if ( ! is_array( $parts ) ) {
 		$parts = array( $raw );
 	}
@@ -742,10 +743,6 @@ function crb_render_import_tag_sources_field( array $tag_sources, array $feed_va
 	echo '<legend>' . esc_html__( 'スロットから生成（記事ごと）', 'custom-rss-builder' ) . '</legend>';
 	echo '<div class="crb-import-tag-sources__choices">';
 	for ( $slot_index = 0; $slot_index <= $max_index; $slot_index++ ) {
-		if ( function_exists( 'crb_ai_transform_slot_is_link' )
-			&& crb_ai_transform_slot_is_link( array( 'css' => $feed_values['css'] ?? array() ), $slot_index ) ) {
-			continue;
-		}
 		$slot_number = $slot_index + 1;
 		$token       = function_exists( 'crb_slot_token' ) ? crb_slot_token( $slot_index ) : '{%' . $slot_number . '}';
 		printf(
@@ -756,7 +753,7 @@ function crb_render_import_tag_sources_field( array $tag_sources, array $feed_va
 		);
 	}
 	echo '</div>';
-	echo '<p class="description">' . esc_html__( 'リンク URL スロットは選択できません。カンマ・読点などで複数値が入っている場合は分割してタグ化します。', 'custom-rss-builder' ) . '</p>';
+	echo '<p class="description">' . esc_html__( '選択したスロットの値をタグ化します。カンマ・読点・|・/ で複数値が入っている場合のみ分割します（中黒は作品名の一部として1タグにします）。', 'custom-rss-builder' ) . '</p>';
 	echo '</fieldset>';
 
 	echo '</div>';

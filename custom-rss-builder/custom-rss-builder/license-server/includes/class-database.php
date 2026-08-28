@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class CRB_License_Server_Database {
 
-	const SCHEMA_VERSION = '1.0';
+	const SCHEMA_VERSION = '1.1';
 
 	/**
 	 * @return string
@@ -17,6 +17,14 @@ class CRB_License_Server_Database {
 	public static function table_name() {
 		global $wpdb;
 		return $wpdb->prefix . CRB_LS_TABLE;
+	}
+
+	/**
+	 * @return string
+	 */
+	public static function sites_table_name() {
+		global $wpdb;
+		return $wpdb->prefix . 'crb_license_sites';
 	}
 
 	/**
@@ -36,11 +44,24 @@ class CRB_License_Server_Database {
 	 */
 	public static function maybe_install() {
 		$installed = get_option( 'crb_ls_db_version', '' );
-		if ( self::table_exists() && self::SCHEMA_VERSION === $installed ) {
+		if ( self::table_exists() && self::sites_table_exists() && self::SCHEMA_VERSION === $installed ) {
 			return;
 		}
 		self::install();
+		self::migrate_legacy_site_urls();
 		update_option( 'crb_ls_db_version', self::SCHEMA_VERSION, false );
+	}
+
+	/**
+	 * @return bool
+	 */
+	public static function sites_table_exists() {
+		global $wpdb;
+
+		$table = self::sites_table_name();
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$found = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+		return $found === $table;
 	}
 
 	public static function install() {
@@ -75,6 +96,73 @@ class CRB_License_Server_Database {
 			// dbDelta が失敗した場合のフォールバック。
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
 			$wpdb->query( $sql );
+		}
+
+		$sites_table = self::sites_table_name();
+		$sites_sql   = "CREATE TABLE {$sites_table} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			license_id bigint(20) unsigned NOT NULL,
+			site_url varchar(255) NOT NULL DEFAULT '',
+			activated_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+			PRIMARY KEY  (id),
+			UNIQUE KEY license_site (license_id, site_url),
+			KEY license_id (license_id)
+		) {$charset};";
+
+		dbDelta( $sites_sql );
+
+		if ( ! self::sites_table_exists() ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.SchemaChange
+			$wpdb->query( $sites_sql );
+		}
+	}
+
+	/**
+	 * 旧 site_url 列の値を crb_license_sites へ移行。
+	 */
+	public static function migrate_legacy_site_urls() {
+		if ( ! self::table_exists() || ! self::sites_table_exists() ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$table = self::table_name();
+		$sites = self::sites_table_name();
+		$rows  = $wpdb->get_results(
+			"SELECT id, site_url FROM {$table} WHERE site_url <> ''",
+			ARRAY_A
+		);
+		if ( ! is_array( $rows ) ) {
+			return;
+		}
+
+		$now = current_time( 'mysql' );
+		foreach ( $rows as $row ) {
+			$license_id = (int) ( $row['id'] ?? 0 );
+			$site_url   = trim( (string) ( $row['site_url'] ?? '' ) );
+			if ( $license_id <= 0 || '' === $site_url ) {
+				continue;
+			}
+			$exists = $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT id FROM {$sites} WHERE license_id = %d AND site_url = %s LIMIT 1",
+					$license_id,
+					$site_url
+				)
+			);
+			if ( $exists ) {
+				continue;
+			}
+			$wpdb->insert(
+				$sites,
+				array(
+					'license_id'   => $license_id,
+					'site_url'     => $site_url,
+					'activated_at' => $now,
+				),
+				array( '%d', '%s', '%s' )
+			);
 		}
 	}
 }

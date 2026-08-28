@@ -105,7 +105,7 @@ $plugin_ver    = isset( $preview_data['plugin_version'] ) ? (string) $preview_da
 							if ( '—' === $selector ) {
 								$selector = '';
 							}
-							$value    = isset( $row[ $slot_index ] ) ? trim( (string) $row[ $slot_index ] ) : '';
+							$value = isset( $row[ $slot_index ] ) ? trim( (string) $row[ $slot_index ] ) : '';
 							if ( '' === $value && '' === $selector ) {
 								continue;
 							}

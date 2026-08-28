@@ -5,6 +5,7 @@
 .crb-sales-lp {
 	--crb-lp-accent: #1a6fb5;
 	--crb-lp-accent-dark: #0f4d82;
+	--crb-lp-standard: #1a7a5c;
 	--crb-lp-pro: #5c3d99;
 	--crb-lp-bg: #f6f8fa;
 	--crb-lp-text: #1a1a1a;
@@ -89,6 +90,17 @@
 .crb-sales-lp__btn--secondary:hover,
 .crb-sales-lp__btn--secondary:focus {
 	background: var(--crb-lp-bg);
+}
+
+.crb-sales-lp__btn--standard {
+	background: var(--crb-lp-standard);
+	color: #fff !important;
+}
+
+.crb-sales-lp__btn--standard:hover,
+.crb-sales-lp__btn--standard:focus {
+	background: #146549;
+	color: #fff !important;
 }
 
 .crb-sales-lp__btn--pro {
@@ -224,6 +236,11 @@
 	border-radius: var(--crb-lp-radius);
 	background: #fff;
 	text-align: center;
+}
+
+.crb-sales-lp__price-card--standard {
+	border-color: var(--crb-lp-standard);
+	box-shadow: 0 4px 16px rgba(26, 122, 92, 0.1);
 }
 
 .crb-sales-lp__price-card--pro {

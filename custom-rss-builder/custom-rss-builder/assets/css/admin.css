@@ -45,6 +45,114 @@
 	vertical-align: top;
 }
 
+.crb-feed-list-nav {
+	margin: 8px 0 12px;
+}
+
+.crb-feed-list-form .check-column {
+	width: 2.2em;
+}
+
+.crb-feed-row--bulk-selected td,
+.crb-feed-row--bulk-selected th {
+	background: #f0f6fc;
+}
+
+.crb-bulk-edit-panel {
+	margin: 0 0 16px;
+}
+
+.crb-csv-import-panel {
+	margin: 24px 0 20px;
+	max-width: 960px;
+}
+
+.crb-csv-import-help {
+	margin: 0 0 12px 1.25em;
+	list-style: disc;
+	color: #50575e;
+	font-size: 12px;
+	line-height: 1.55;
+}
+
+.crb-csv-import-sample {
+	margin: 8px 0 16px;
+	padding: 12px 14px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	overflow-x: auto;
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.crb-csv-import-form .large-text {
+	width: 100%;
+	max-width: 100%;
+}
+
+.crb-csv-import-errors {
+	margin: 0.5em 0 0.5em 1.25em;
+	list-style: disc;
+}
+
+.crb-bulk-edit-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 16px 20px;
+	margin: 12px 0 0;
+}
+
+.crb-bulk-edit-field label {
+	display: block;
+	font-weight: 600;
+	margin: 0 0 6px;
+}
+
+.crb-bulk-edit-field .description {
+	margin: 6px 0 0;
+}
+
+.crb-bulk-edit-actions {
+	margin: 16px 0 0;
+}
+
+.crb-bulk-edit-actions .button {
+	margin-right: 8px;
+}
+
+.crb-bulk-edit-section {
+	margin: 0 0 20px;
+	padding: 0;
+	border: 0;
+}
+
+.crb-bulk-edit-section > legend {
+	margin: 0 0 8px;
+}
+
+.crb-bulk-edit-text-fields {
+	display: grid;
+	gap: 16px;
+	margin-top: 8px;
+}
+
+.crb-bulk-edit-text-field__toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 600;
+	margin: 0 0 8px;
+}
+
+.crb-bulk-edit-ai-status {
+	margin: 0 0 12px;
+}
+
+.crb-bulk-edit-find-replace__targets label {
+	display: inline-block;
+	margin-right: 16px;
+}
+
 .crb-feed-form label {
 	margin-right: 16px;
 }
@@ -422,6 +530,24 @@
 
 .crb-link-rewrite-rule__label {
 	min-width: 14em;
+}
+
+.crb-link-rewrite-rule__regex {
+	margin-left: 0.5em;
+}
+
+.crb-link-rewrite-prefix-fields[data-mode="prefix"] .crb-link-rewrite-label--regex,
+.crb-link-rewrite-prefix-fields[data-mode="prefix"] .crb-link-rewrite-desc--regex {
+	display: none;
+}
+
+.crb-link-rewrite-prefix-fields[data-mode="regex"] .crb-link-rewrite-label--prefix,
+.crb-link-rewrite-prefix-fields[data-mode="regex"] .crb-link-rewrite-desc--prefix {
+	display: none;
+}
+
+.crb-bulk-edit-section .crb-link-rewrite-rule {
+	margin-top: 0.75em;
 }
 
 .crb-link-rewrite-advanced {

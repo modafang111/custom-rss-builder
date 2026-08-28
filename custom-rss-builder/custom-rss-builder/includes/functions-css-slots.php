@@ -183,16 +183,21 @@ function crb_collect_extra_slot_fields_from_post() {
 	if ( empty( $_POST ) || ! is_array( $_POST ) ) {
 		return $out;
 	}
-	foreach ( crb_extra_slot_storage_map() as $meta ) {
+	foreach ( crb_extra_slot_storage_map() as $index => $meta ) {
 		$config_key = (string) ( $meta['config_key'] ?? '' );
 		$mode_key   = (string) ( $meta['mode_key'] ?? '' );
 		if ( '' !== $config_key ) {
-			$post_key            = 'css_' . $config_key;
+			$post_key           = 'css_' . $config_key;
 			$out[ $config_key ] = isset( $_POST[ $post_key ] ) ? wp_unslash( $_POST[ $post_key ] ) : '';
 		}
 		if ( '' !== $mode_key ) {
-			$post_mode          = 'css_' . $mode_key;
+			$post_mode        = 'css_' . $mode_key;
 			$out[ $mode_key ] = isset( $_POST[ $post_mode ] ) ? wp_unslash( $_POST[ $post_mode ] ) : '';
+		}
+		$attr_key      = 'slot_attr_' . ( (int) $index + 1 );
+		$post_attr_key = 'css_' . $attr_key;
+		if ( isset( $_POST[ $post_attr_key ] ) ) {
+			$out[ $attr_key ] = wp_unslash( $_POST[ $post_attr_key ] );
 		}
 	}
 	return $out;
@@ -295,10 +300,10 @@ function crb_get_feed_extra_slot_rules( array $config ) {
 		$mode     = crb_sanitize_slot_extract_mode(
 			(string) ( $config[ $mode_key ] ?? $meta['default_mode'] )
 		);
-		$attr = 'title';
+		$attr = '';
 		if ( 'attr' === $mode ) {
 			$attr_key = 'slot_attr_' . ( $index + 1 );
-			$attr     = crb_sanitize_css_attr_name( (string) ( $config[ $attr_key ] ?? 'title' ) );
+			$attr     = crb_sanitize_css_attr_name( (string) ( $config[ $attr_key ] ?? '' ) );
 		}
 		$rules[ $index ] = array(
 			'selector' => $selector,
@@ -394,7 +399,7 @@ function crb_get_slot_rules_for_json( array $config = array() ) {
 	$rules[] = array(
 		'index'      => 1,
 		'token'      => crb_slot_token( 1 ),
-		'selector'   => $link_sel,
+		'selector'   => '' !== $link_sel ? $link_sel : '—',
 		'mode'       => 'href',
 		'mode_label' => __( 'リンクURL (href)', 'custom-rss-builder' ),
 		'is_html'    => false,
@@ -406,7 +411,8 @@ function crb_get_slot_rules_for_json( array $config = array() ) {
 		$flags = crb_slot_flags_for_mode( $mode );
 		$label = $extra_opts[ $mode ] ?? $mode;
 		if ( 'attr' === $mode ) {
-			$label .= ' (' . (string) ( $rule['attr'] ?? 'title' ) . ')';
+			$attr_name = trim( (string) ( $rule['attr'] ?? '' ) );
+			$label    .= ' (' . ( '' !== $attr_name ? $attr_name : '？' ) . ')';
 		}
 		$sel = trim( (string) ( $rule['selector'] ?? '' ) );
 		$rules[] = array(

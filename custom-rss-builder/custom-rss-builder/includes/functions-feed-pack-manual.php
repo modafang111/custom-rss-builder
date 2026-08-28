@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_FEED_PACK_MANUAL_VERSION', '2' );
+define( 'CRB_FEED_PACK_MANUAL_VERSION', '3' );
 define( 'CRB_FEED_PACK_MANUAL_OPTION_PAGE_ID', 'crb_feed_pack_manual_page_id' );
 
 /**
@@ -189,6 +189,8 @@ function crb_feed_pack_manual_build_page_content() {
 	$lines[] = '<p>' . esc_html__( 'A. ファイルが壊れている、pack_version が古い／新しすぎる、feed オブジェクトがない場合に失敗します。正しいエクスポート JSON か確認してください。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. インポートでライセンスや他フィードが消えますか？', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p>' . esc_html__( 'A. いいえ。インポートは開いている 1 件のフォームに反映するだけです。保存前は DB も更新されません。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h3>' . esc_html__( 'Q. Pro を複数サイトで使う場合、設定パックはサイトごとに必要ですか？', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p>' . esc_html__( 'A. はい。設定パック（JSON）は 1 つの WordPress サイト内の 1 フィード分の設定です。別サイトへ同じ設定を入れる場合は、各サイトのフィード編集画面でインポートしてください。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. 初回無料の代行は何回まで？', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p>' . esc_html__( 'A. Pro お申し込み後、最初の 1 フィードにつき 1 回限り無料です。2 フィード目や設定の作り直し（2 回目以降）は 1,000 円（税別）／回となります。', 'custom-rss-builder' ) . '</p>';
 

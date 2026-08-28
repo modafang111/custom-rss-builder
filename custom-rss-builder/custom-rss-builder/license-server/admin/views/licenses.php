@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 <div class="wrap">
 	<h1><?php esc_html_e( 'CRB ライセンス一覧', 'crb-license-server' ); ?></h1>
 
-	<p class="description"><?php esc_html_e( 'キーの発行・有効/無効の管理を行います。Custom RSS Builder の「ライセンス」画面でキーを有効化すると、このサイトに紐づきます。', 'crb-license-server' ); ?></p>
+	<p class="description"><?php esc_html_e( 'キーの発行・有効/無効の管理を行います。無料・スタンダードは 1 サイト、Pro は最大 10 サイトまで同一キーで有効化できます。', 'crb-license-server' ); ?></p>
 
 	<?php if ( ! empty( $_GET['created'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'ライセンスを発行しました（メール送信済みの場合あり）。', 'crb-license-server' ); ?></p></div>
@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<option value="free" selected><?php esc_html_e( '無料', 'crb-license-server' ); ?></option>
 				<option value="standard"><?php esc_html_e( 'スタンダード', 'crb-license-server' ); ?></option>
 				<option value="pro"><?php esc_html_e( 'Pro', 'crb-license-server' ); ?></option>
+				<option value="special"><?php esc_html_e( 'Unlimited（非公開・フィード無制限）', 'crb-license-server' ); ?></option>
 			</select>
 		</label>
 		<?php submit_button( __( '発行', 'crb-license-server' ), 'secondary', 'crb_ls_create_license', false ); ?>
@@ -80,7 +81,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<td><?php echo esc_html( (string) ( $row['email'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( function_exists( 'crb_ls_admin_plan_label' ) ? crb_ls_admin_plan_label( (string) ( $row['plan'] ?? '' ) ) : (string) ( $row['plan'] ?? '' ) ); ?></td>
 						<td><?php echo esc_html( function_exists( 'crb_ls_admin_status_label' ) ? crb_ls_admin_status_label( (string) ( $row['status'] ?? '' ) ) : (string) ( $row['status'] ?? '' ) ); ?></td>
-						<td><?php echo esc_html( (string) ( $row['site_url'] ?? '' ) ); ?></td>
+						<td>
+							<?php
+							$activated_sites = isset( $row['activated_sites'] ) && is_array( $row['activated_sites'] )
+								? $row['activated_sites']
+								: array();
+							if ( empty( $activated_sites ) ) {
+								echo '—';
+							} else {
+								foreach ( $activated_sites as $site_index => $site_url ) {
+									if ( $site_index > 0 ) {
+										echo '<br />';
+									}
+									echo '<code>' . esc_html( (string) $site_url ) . '</code>';
+								}
+							}
+							?>
+						</td>
 						<td>
 							<?php if ( ! $is_active ) : ?>
 								<a href="<?php echo esc_url( $activate ); ?>"><?php esc_html_e( '有効化', 'crb-license-server' ); ?></a>

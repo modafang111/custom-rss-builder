@@ -67,6 +67,38 @@ python tools/update_dlm_client_zip.py
 
 インストール手順固定ページへのダウンロードリンク追加は行いません（ダウンロードページと役割が重複するため）。
 
+## CRB ID Split（DUGA Helper・補助プラグイン）
+
+本体 CRB とは別配布の無料補助プラグインです（DUGA の ID 分割・プレイヤー用）。
+
+| 項目 | 内容 |
+|------|------|
+| ダウンロードページ | `https://123789.jp/custom-rss-builder/crb-id-split/` |
+| 実体 ZIP | `wp-content/uploads/crb-helpers/crb-id-split.zip` |
+| ローカルソース | `C:\Users\アイデアマート\crb-id-split\crb-id-split\`（または同等） |
+
+```bash
+python tools/build_crb_id_split_zip.py
+python tools/publish_crb_id_split.py
+```
+
+`publish_crb_id_split.py` は ZIP ビルド → 正本 uploads へ配置 → 固定ページ作成／更新まで行います。
+
+## CRB Title Redirect（同一タイトル・旧→新リダイレクト）
+
+自動取り込みでの重複タイトル対策用の無料補助プラグインです。
+
+| 項目 | 内容 |
+|------|------|
+| ダウンロードページ | `https://123789.jp/custom-rss-builder/crb-title-redirect/` |
+| 実体 ZIP | `wp-content/uploads/crb-helpers/crb-title-redirect.zip` |
+| ローカルソース | `C:\Users\アイデアマート\crb-title-redirect\crb-title-redirect\` |
+
+```bash
+python tools/build_crb_title_redirect_zip.py
+python tools/publish_crb_title_redirect.py
+```
+
 ### プラグイン削除とライセンス設定
 
 WordPress は **`uninstall.php` が無いと「削除」しても `wp_options` が残ります**。以前 Pro を有効化したサイトでは、ZIP を入れ直すだけで Pro のままになります。
@@ -83,8 +115,13 @@ HTTPS ページ上の Download Monitor ボタンが `http://` になると Chrom
 
 | 定数 | 例 | いつ上げるか |
 |------|-----|-------------|
-| `CRB_VERSION` | `0.9.0` | 顧客向けリリース単位（WordPress の Version ヘッダと一致） |
-| `CRB_BUILD_ID` | `20260610r` | **デプロイごと**（管理 UI・キャッシュ bust・検証用） |
+| `CRB_VERSION` | `0.9.1` | 顧客向けリリース単位 |
+| `CRB_BUILD_ID` | `20260711d` | **デプロイごと**（管理 UI・キャッシュ bust・検証用） |
+
+WordPress の「プラグインをインストール」比較表は **`Version:` ヘッダしか見ません**（`CRB_BUILD_ID` は出ません）。  
+そのため配布 ZIP ビルド時に `Version:` を **`{CRB_VERSION}.{CRB_BUILD_ID}`**（例: `0.9.1.20260711d`）へ自動合成します。ソースの `Version:` 行も同じ形式に揃えてください。
+
+管理画面では従来どおり **`v0.9.1 · ビルド 20260711d`** と表示します（`CRB_VERSION` と `CRB_BUILD_ID`）。
 
 `CRB_BUILD_ID` **だけではソースを戻せません**。次の2つをセットで使います。
 

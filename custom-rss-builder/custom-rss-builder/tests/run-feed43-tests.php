@@ -139,6 +139,24 @@ crb_assert( '' !== crb_row_value( $r['rows'], 1 ), 'review-list: {%2} href', crb
 $summary = crb_row_value( $r['rows'], 2 );
 crb_assert( '' !== $summary, 'review-list: {%3} has longest text field', $summary );
 
+// --- 連番提案: {%3} 以降に飛び番号がないこと ---
+$discovery = new Custom_RSS_Builder_Element_Discovery();
+$seq_html  = file_get_contents( dirname( __DIR__ ) . '/test-fixture/review-list-sample.html' );
+$seq_res   = $discovery->discover( $seq_html, '#review_list', '.review_contents' );
+$seq_props = crb_build_sequential_slot_proposals( $seq_res['groups'] ?? array(), array() );
+$seq_indexes = array_map(
+	static function ( $proposal ) {
+		return (int) ( $proposal['index'] ?? -1 );
+	},
+	$seq_props
+);
+$expected_seq = range( 0, max( 0, count( $seq_props ) - 1 ) );
+crb_assert(
+	$seq_indexes === $expected_seq,
+	'sequential: slot indexes are packed 0..n without gaps',
+	implode( ',', $seq_indexes )
+);
+
 echo "\n";
 if ( $failures > 0 ) {
 	echo "{$failures} test(s) failed.\n";

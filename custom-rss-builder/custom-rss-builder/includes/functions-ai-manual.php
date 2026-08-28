@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_AI_MANUAL_VERSION', '11' );
+define( 'CRB_AI_MANUAL_VERSION', '12' );
 define( 'CRB_AI_MANUAL_OPTION_PAGE_ID', 'crb_ai_manual_page_id' );
 
 /**
@@ -295,6 +295,8 @@ function crb_ai_manual_build_page_content() {
 	$lines[] = '</tbody></table>';
 
 	$lines[] = '<h2 id="crb-ai-faq">' . esc_html__( 'よくある質問', 'custom-rss-builder' ) . '</h2>';
+	$lines[] = '<h3>' . esc_html__( 'Q. Pro を複数サイトで使うとき、API キーは共有できますか？', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p>' . esc_html__( 'A. ライセンスキー（Pro）は最大 10 台の WordPress で同じものを有効化できます。Gemini API キーは各サイトの「ライセンス → AI テキスト変換」に個別に保存してください（1 サイト 1 キーを推奨）。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. API キーは販売元サーバーに送られますか？', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p>' . esc_html__( 'A. いいえ。キーはお客様の WordPress にのみ保存されます。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. OpenAI キーは使えますか？', 'custom-rss-builder' ) . '</h3>';

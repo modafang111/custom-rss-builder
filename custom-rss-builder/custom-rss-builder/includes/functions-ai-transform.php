@@ -119,11 +119,38 @@ function crb_collect_ai_transform_from_request() {
 }
 
 /**
+ * 管理画面向け: AI 連携の現在状態（一括編集の診断表示用）。
+ *
+ * @return array{plan:string,license_usable:bool,can_edit:bool,runtime_ready:bool,gemini_key:bool}
+ */
+function crb_ai_transform_admin_status_snapshot() {
+	$state = function_exists( 'crb_license_get_state' ) ? crb_license_get_state() : array();
+
+	return array(
+		'plan'           => sanitize_key( (string) ( $state['plan'] ?? '' ) ),
+		'license_usable' => ! empty( $state['usable'] ),
+		'can_edit'       => crb_ai_transform_can_edit_feed_settings(),
+		'runtime_ready'  => crb_ai_transform_is_configured_globally(),
+		'gemini_key'     => function_exists( 'crb_gemini_api_key_configured' ) && crb_gemini_api_key_configured(),
+	);
+}
+
+/**
+ * フィードの AI 設定（変換指示・スロット等）を編集できるか。Pro のみで可（API キー不要）。
+ *
+ * @return bool
+ */
+function crb_ai_transform_can_edit_feed_settings() {
+	return function_exists( 'crb_license_can' ) && crb_license_can( 'ai_transform' );
+}
+
+/**
+ * プレビュー・取り込みで AI 変換を実行できるか（Pro + Gemini API キー）。
+ *
  * @return bool
  */
 function crb_ai_transform_is_configured_globally() {
-	return function_exists( 'crb_license_can' )
-		&& crb_license_can( 'ai_transform' )
+	return crb_ai_transform_can_edit_feed_settings()
 		&& function_exists( 'crb_gemini_api_key_configured' )
 		&& crb_gemini_api_key_configured();
 }

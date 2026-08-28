@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_SALES_LP_VERSION', '3' );
+define( 'CRB_SALES_LP_VERSION', '14' );
 define( 'CRB_SALES_LP_OPTION_PAGE_ID', 'crb_sales_lp_page_id' );
 
 /**
@@ -118,6 +118,16 @@ function crb_sales_lp_pro_payment_url() {
 }
 
 /**
+ * @return string
+ */
+function crb_sales_lp_standard_payment_url() {
+	if ( function_exists( 'crb_license_standard_payment_url' ) ) {
+		return (string) crb_license_standard_payment_url();
+	}
+	return '';
+}
+
+/**
  * @param string $filename Basename under assets/images/lp/.
  * @return string
  */
@@ -160,7 +170,7 @@ function crb_sales_lp_image_tag( $filename, $alt ) {
 }
 
 /**
- * @return array<int, array{label:string, free:string, pro:string}>
+ * @return array<int, array{label:string, free:string, standard:string, pro:string}>
  */
 function crb_sales_lp_plan_rows() {
 	if ( function_exists( 'crb_license_plan_comparison_rows' ) ) {
@@ -174,6 +184,7 @@ function crb_sales_lp_plan_rows() {
  */
 function crb_sales_lp_build_page_content() {
 	$download_url = crb_sales_lp_download_url();
+	$standard_url = crb_sales_lp_standard_payment_url();
 	$pro_url      = crb_sales_lp_pro_payment_url();
 	$install_url  = function_exists( 'crb_install_manual_page_url' ) ? crb_install_manual_page_url() : '';
 	$samples_url  = function_exists( 'crb_demo_samples_index_url' ) ? crb_demo_samples_index_url() : '';
@@ -193,7 +204,7 @@ function crb_sales_lp_build_page_content() {
 		$lines[] = '<a class="crb-sales-lp__btn crb-sales-lp__btn--secondary" href="' . esc_url( $download_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'プラグイン ZIP をダウンロード', 'custom-rss-builder' ) . '</a>';
 	}
 	$lines[] = '</div>';
-	$lines[] = '<p class="crb-sales-lp__hero-note">' . esc_html__( '無料プランあり · クレジットカード不要 · お手持ちの WordPress にインストール', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<p class="crb-sales-lp__hero-note">' . esc_html__( '無料プランあり · スタンダード・Pro は月額サブスク · Pro は同一キーで最大 10 サイトまで', 'custom-rss-builder' ) . '</p>';
 	$hero_img = crb_sales_lp_image_tag(
 		'lp-hero-feed-edit.png',
 		__( 'フィード編集画面（範囲・スロット設定）', 'custom-rss-builder' )
@@ -305,13 +316,21 @@ function crb_sales_lp_build_page_content() {
 	$lines[] = '<div class="crb-sales-lp__price-card">';
 	$lines[] = '<h3>' . esc_html__( '無料', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p class="crb-sales-lp__price">' . esc_html__( '0 円', 'custom-rss-builder' ) . '</p>';
-	$lines[] = '<p class="crb-sales-lp__price-note">' . esc_html__( 'フィード 1 件 · スロット {%1%}〜{%3%}', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<p class="crb-sales-lp__price-note">' . esc_html__( 'WordPress 1 台 · フィード 1 件 · スロット {%1%}〜{%3%}', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<a class="crb-sales-lp__btn crb-sales-lp__btn--primary" href="#crb-lp-register">' . esc_html__( '無料で始める', 'custom-rss-builder' ) . '</a>';
+	$lines[] = '</div>';
+	$lines[] = '<div class="crb-sales-lp__price-card crb-sales-lp__price-card--standard">';
+	$lines[] = '<h3>' . esc_html__( 'スタンダード', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p class="crb-sales-lp__price">' . esc_html( function_exists( 'crb_standard_monthly_price_label' ) ? crb_standard_monthly_price_label() : __( '月額 1,100 円（税込）', 'custom-rss-builder' ) ) . '</p>';
+	$lines[] = '<p class="crb-sales-lp__price-note">' . esc_html__( 'WordPress 1 台 · フィード 3 件まで · スロット {%1%}〜{%5%} · 自動取り込み 1 時間〜 · クレジット非表示', 'custom-rss-builder' ) . '</p>';
+	if ( '' !== $standard_url ) {
+		$lines[] = '<a class="crb-sales-lp__btn crb-sales-lp__btn--standard" href="' . esc_url( $standard_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'スタンダードを申し込む', 'custom-rss-builder' ) . '</a>';
+	}
 	$lines[] = '</div>';
 	$lines[] = '<div class="crb-sales-lp__price-card crb-sales-lp__price-card--pro">';
 	$lines[] = '<h3>Pro</h3>';
 	$lines[] = '<p class="crb-sales-lp__price">' . esc_html( function_exists( 'crb_pro_monthly_price_label' ) ? crb_pro_monthly_price_label() : __( '月額 3,300 円（税込）', 'custom-rss-builder' ) ) . '</p>';
-	$lines[] = '<p class="crb-sales-lp__price-note">' . esc_html__( 'フィード無制限 · スロット {%1%}〜{%20%} · AI 変換 · クレジット非表示', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<p class="crb-sales-lp__price-note">' . esc_html__( 'WordPress 10 台まで · 各サイトでフィード 10 件まで · スロット {%1%}〜{%20%} · AI 変換 · クレジット非表示', 'custom-rss-builder' ) . '</p>';
 	if ( '' !== $pro_url ) {
 		$lines[] = '<a class="crb-sales-lp__btn crb-sales-lp__btn--pro" href="' . esc_url( $pro_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Pro を申し込む', 'custom-rss-builder' ) . '</a>';
 	}
@@ -320,12 +339,13 @@ function crb_sales_lp_build_page_content() {
 
 	if ( ! empty( $plan_rows ) ) {
 		$lines[] = '<table class="crb-sales-lp__plan-table widefat">';
-		$lines[] = '<thead><tr><th>' . esc_html__( '機能', 'custom-rss-builder' ) . '</th><th>' . esc_html__( '無料', 'custom-rss-builder' ) . '</th><th>Pro</th></tr></thead><tbody>';
+		$lines[] = '<thead><tr><th>' . esc_html__( '機能', 'custom-rss-builder' ) . '</th><th>' . esc_html__( '無料', 'custom-rss-builder' ) . '</th><th>' . esc_html__( 'スタンダード', 'custom-rss-builder' ) . '</th><th>Pro</th></tr></thead><tbody>';
 		foreach ( $plan_rows as $row ) {
 			$lines[] = sprintf(
-				'<tr><td>%s</td><td>%s</td><td>%s</td></tr>',
+				'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
 				esc_html( (string) ( $row['label'] ?? '' ) ),
 				esc_html( (string) ( $row['free'] ?? '' ) ),
+				esc_html( (string) ( $row['standard'] ?? '—' ) ),
 				esc_html( (string) ( $row['pro'] ?? '' ) )
 			);
 		}
@@ -335,8 +355,8 @@ function crb_sales_lp_build_page_content() {
 
 	// Register.
 	$lines[] = '<section class="crb-sales-lp__section crb-sales-lp__section--register" id="crb-lp-register">';
-	$lines[] = '<h2>' . esc_html__( '無料ライセンスの申請', 'custom-rss-builder' ) . '</h2>';
-	$lines[] = '<p>' . esc_html__( 'メールアドレスを入力すると、無料プランのライセンスキーをお送りします。ZIP のダウンロード案内も同じメールに含まれます。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h2>' . esc_html__( 'ライセンスの申請', 'custom-rss-builder' ) . '</h2>';
+	$lines[] = '<p>' . esc_html__( '無料プランはメールアドレスを送信するとキーが届きます（ZIP のダウンロード案内も同じメールに含まれます）。スタンダード・Pro は月額サブスクリプションで、下の各申し込みボタンからお申し込みください。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '[crb_free_license]';
 	$lines[] = '</section>';
 
@@ -348,6 +368,35 @@ function crb_sales_lp_build_page_content() {
 		$lines[] = '<p><a class="crb-sales-lp__btn crb-sales-lp__btn--secondary" href="' . esc_url( $download_url ) . '" target="_blank" rel="noopener noreferrer">' . esc_html__( 'ダウンロードページを開く', 'custom-rss-builder' ) . '</a></p>';
 		$lines[] = '</section>';
 	}
+
+	// Helper plugins (optional add-ons).
+	$helper_plugins = array(
+		array(
+			'title' => __( 'CRB ID Split（DUGA Helper）', 'custom-rss-builder' ),
+			'body'  => __( '作品 ID を前半・後半に分割し、サンプルプレイヤー HTML を本文テンプレートから出力する無料補助プラグインです。本体には DUGA 固有ロジックを入れていません。', 'custom-rss-builder' ),
+			'url'   => 'https://123789.jp/custom-rss-builder/crb-id-split/',
+			'cta'   => __( 'ダウンロードページへ', 'custom-rss-builder' ),
+		),
+		array(
+			'title' => __( 'CRB Title Redirect', 'custom-rss-builder' ),
+			'body'  => __( 'タイトルが完全に同じ公開投稿が重複したとき、旧投稿から新投稿へ 301 リダイレクトする無料補助プラグインです。自動取り込みの重複コンテンツ対策向けです。', 'custom-rss-builder' ),
+			'url'   => 'https://123789.jp/custom-rss-builder/crb-title-redirect/',
+			'cta'   => __( 'ダウンロードページへ', 'custom-rss-builder' ),
+		),
+	);
+	$lines[] = '<section class="crb-sales-lp__section" id="crb-lp-helpers">';
+	$lines[] = '<h2>' . esc_html__( '補助プラグイン（無料）', 'custom-rss-builder' ) . '</h2>';
+	$lines[] = '<p>' . esc_html__( '本体とは別にインストールするオプション機能です。必要なサイトだけ追加してください。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<div class="crb-sales-lp__cards">';
+	foreach ( $helper_plugins as $helper ) {
+		$lines[] = '<article class="crb-sales-lp__card">';
+		$lines[] = '<h3>' . esc_html( $helper['title'] ) . '</h3>';
+		$lines[] = '<p>' . esc_html( $helper['body'] ) . '</p>';
+		$lines[] = '<p style="margin-top:0.85rem;"><a class="crb-sales-lp__btn crb-sales-lp__btn--secondary" href="' . esc_url( $helper['url'] ) . '">' . esc_html( $helper['cta'] ) . '</a></p>';
+		$lines[] = '</article>';
+	}
+	$lines[] = '</div>';
+	$lines[] = '</section>';
 
 	// Resources.
 	$lines[] = '<section class="crb-sales-lp__section" id="crb-lp-resources">';

@@ -9,6 +9,8 @@ Custom RSS Builder 正本サイト用のライセンス発行・REST API。
 3. 固定ページに `[crb_free_license]` を設置（無料登録）
 4. Pro 決済は **外部決済 URL** 経由。決済後に **ライセンス一覧** から Pro キーを手動発行
 
+**プラン上限（参考）:** 無料・スタンダードは WordPress **1 台**・フィード 1 / 3 件。Pro は **10 台まで**（同一キー）・各サイトでフィード **10 件**まで。
+
 ### 公開 URL（クライアント向け手順ページ）
 
 正本サイトの固定ページ（製品・練習用の子ページ）:
@@ -45,6 +47,10 @@ Custom RSS Builder 正本サイト用のライセンス発行・REST API。
 ## Pro 決済 URL
 
 デフォルト: `https://www.wordpress-123.com/payment/f2pset.php?code=16&mode=button`
+
+## スタンダード決済 URL
+
+デフォルト: `https://www.wordpress-123.com/payment/f2pset.php?code=15&mode=button`
 
 ## ライセンスキー通知メール
 

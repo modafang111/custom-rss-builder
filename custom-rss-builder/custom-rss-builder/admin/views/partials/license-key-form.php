@@ -12,6 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 $is_client_screen        = function_exists( 'crb_license_ui_is_client_screen' ) && crb_license_ui_is_client_screen();
 $license_key_input_value = (string) ( $settings['license_key'] ?? '' );
 $is_pro_upgrade_form     = $is_client_screen && $state['usable'] && 'free' === $state['plan'];
+$is_pro_tier_active      = $state['usable'] && (
+	function_exists( 'crb_license_is_pro_tier' )
+		? crb_license_is_pro_tier( $state['plan'] )
+		: 'pro' === $state['plan']
+);
 
 if ( $is_pro_upgrade_form ) {
 	$license_key_input_value = '';
@@ -27,14 +32,14 @@ if ( $is_pro_upgrade_form ) {
 		if ( $is_pro_upgrade_form ) {
 			esc_html_e( 'Pro にアップグレード', 'custom-rss-builder' );
 		} elseif ( $is_client_screen ) {
-			if ( $state['usable'] && 'pro' === $state['plan'] ) {
+			if ( $is_pro_tier_active ) {
 				esc_html_e( 'ライセンスキー', 'custom-rss-builder' );
 			} elseif ( $state['usable'] ) {
 				esc_html_e( 'Pro にアップグレード', 'custom-rss-builder' );
 			} else {
 				esc_html_e( 'ライセンスの有効化', 'custom-rss-builder' );
 			}
-		} elseif ( $state['usable'] && 'pro' === $state['plan'] ) {
+		} elseif ( $is_pro_tier_active ) {
 			esc_html_e( 'ライセンスキーの確認', 'custom-rss-builder' );
 		} else {
 			esc_html_e( 'Pro ライセンスキー', 'custom-rss-builder' );
@@ -45,10 +50,10 @@ if ( $is_pro_upgrade_form ) {
 		<?php if ( $is_pro_upgrade_form ) : ?>
 			<?php esc_html_e( 'Pro 用ライセンスキーを入力して「有効化」を押してください。無料プランのキーはそのまま残しておいて構いません。', 'custom-rss-builder' ); ?>
 		<?php elseif ( $is_client_screen ) : ?>
-			<?php if ( $state['usable'] && 'pro' === $state['plan'] ) : ?>
+			<?php if ( $is_pro_tier_active ) : ?>
 				<?php esc_html_e( 'Pro が有効です。キーを変更するときだけ入力して「有効化」を押してください。', 'custom-rss-builder' ); ?>
 			<?php elseif ( $state['usable'] ) : ?>
-				<?php esc_html_e( 'Pro 用キーを入力して「Pro を有効化」を押してください。', 'custom-rss-builder' ); ?>
+				<?php esc_html_e( 'Pro 用キーを入力して「Pro を有効化」を押してください。Pro は同一キーで最大 10 台の WordPress サイトまで有効化できます。', 'custom-rss-builder' ); ?>
 			<?php else : ?>
 				<?php
 				$portal_url = function_exists( 'crb_license_registration_portal_url' ) ? crb_license_registration_portal_url() : '';
@@ -66,7 +71,7 @@ if ( $is_pro_upgrade_form ) {
 				}
 				?>
 			<?php endif; ?>
-		<?php elseif ( $state['usable'] && 'pro' === $state['plan'] ) : ?>
+		<?php elseif ( $is_pro_tier_active ) : ?>
 			<?php esc_html_e( '現在 Pro が有効です。別のキーに差し替える場合のみ入力して有効化してください。', 'custom-rss-builder' ); ?>
 		<?php else : ?>
 			<?php

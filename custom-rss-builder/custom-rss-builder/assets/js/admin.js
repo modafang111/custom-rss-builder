@@ -159,7 +159,11 @@
 				t.classList.contains('crb-slot-mode') ||
 				t.classList.contains('crb-slot-attr') ||
 				t.id === 'crb-slot-0-sel' ||
-				t.id === 'crb-slot-1-sel'
+				t.id === 'crb-slot-1-sel' ||
+				t.classList.contains('crb-link-rewrite-source-input') ||
+				t.classList.contains('crb-link-rewrite-target-input') ||
+				t.classList.contains('crb-link-rewrite-use-regex') ||
+				(t.name && t.name.indexOf('link_rewrite') === 0)
 			) {
 				scheduleExtractPreviewRefresh();
 			}
@@ -257,14 +261,20 @@
 	}
 
 	function toggleSlotAttrFields() {
-		var modeEl = document.getElementById('crb-slot-0-mode');
-		var attrEl = document.getElementById('crb-slot-0-attr');
-		if (!modeEl || !attrEl) {
-			return;
-		}
-		var show = modeEl.value === 'attr' || modeEl.value === 'el_attr';
-		attrEl.hidden = !show;
-		attrEl.disabled = !show;
+		form.querySelectorAll('.crb-slot-mode').forEach(function (modeEl) {
+			var idx = modeEl.getAttribute('data-slot-index');
+			if (idx === null || idx === '') {
+				return;
+			}
+			var attrEl = form.querySelector('.crb-slot-attr[data-slot-index="' + idx + '"]');
+			if (!attrEl) {
+				return;
+			}
+			var show = modeEl.value === 'attr' || modeEl.value === 'el_attr';
+			attrEl.hidden = !show;
+			// disabled にすると保存時に POST されず title に戻るので使わない
+			attrEl.disabled = false;
+		});
 	}
 
 	function collectCssConfigForDiscover() {
@@ -293,6 +303,12 @@
 				out[name.replace(/^css_/, '')] = el.value || '';
 			}
 		});
+		form.querySelectorAll('.crb-slot-attr').forEach(function (el) {
+			var name = el.getAttribute('name');
+			if (name) {
+				out[name.replace(/^css_/, '')] = el.value || '';
+			}
+		});
 		return out;
 	}
 
@@ -304,8 +320,10 @@
 	function setSlotField(slotIndex, selector, mode, options) {
 		options = options || {};
 		var force = !!options.force;
+		var attrName = options.attr || '';
 		var sel = form.querySelector('.crb-slot-selector[data-slot-index="' + slotIndex + '"]');
 		var modeEl = form.querySelector('.crb-slot-mode[data-slot-index="' + slotIndex + '"]');
+		var attrEl = form.querySelector('.crb-slot-attr[data-slot-index="' + slotIndex + '"]');
 		if (sel && selector && (force || !sel.value.trim())) {
 			sel.value = selector;
 		}
@@ -322,6 +340,11 @@
 			}
 			toggleSlotAttrFields();
 		}
+		if (attrEl && attrName) {
+			attrEl.value = attrName;
+			attrEl.hidden = false;
+			attrEl.disabled = false;
+		}
 	}
 
 	function slotToken(index) {
@@ -335,7 +358,8 @@
 		if (!selector || !form) {
 			return '';
 		}
-		for (var i = 0; i < CRB_SLOT_COUNT; i++) {
+		// {%1%}・{%2%} は④の固定行。③の候補表では {%3%} 以降だけ照合する。
+		for (var i = 2; i < CRB_SLOT_COUNT; i++) {
 			var sel = form.querySelector('.crb-slot-selector[data-slot-index="' + i + '"]');
 			if (sel && sel.value.trim() === selector) {
 				return String(i);
@@ -369,8 +393,18 @@
 			) {
 				return 'src';
 			}
+			// pid / cid など任意属性は mode=attr として残す（text に落とさない）
+			return 'attr';
 		}
 		return 'text';
+	}
+
+	function candidateAttrName(mode) {
+		mode = (mode || '').trim();
+		if (mode.indexOf('attr:') === 0) {
+			return mode.slice(5);
+		}
+		return '';
 	}
 
 	function markStep4Updated() {
@@ -385,6 +419,91 @@
 		if (navItem) {
 			navItem.classList.add('is-done');
 		}
+	}
+
+	function clearSlotsForSequentialApply() {
+		var titleSelEl = document.getElementById('crb-slot-0-sel');
+		var titleModeEl = document.getElementById('crb-slot-0-mode');
+		var titleAttrEl = document.getElementById('crb-slot-0-attr');
+		if (titleSelEl) {
+			titleSelEl.value = '';
+		}
+		if (titleModeEl) {
+			titleModeEl.value = 'attr';
+		}
+		if (titleAttrEl) {
+			titleAttrEl.value = 'title';
+		}
+		form.querySelectorAll('.crb-slot-selector').forEach(function (el) {
+			el.value = '';
+		});
+		form.querySelectorAll('.crb-slot-mode').forEach(function (el) {
+			var slotIndex = parseInt(el.getAttribute('data-slot-index') || '-1', 10);
+			if (slotIndex >= 2) {
+				el.value = el.getAttribute('data-default-mode') || 'text';
+			}
+		});
+		form.querySelectorAll('.crb-slot-attr').forEach(function (el) {
+			el.value = '';
+		});
+		toggleSlotAttrFields();
+	}
+
+	function candidateRowFromProposal(proposal) {
+		var mode = (proposal.mode || 'text').trim();
+		var attr = (proposal.attr || '').trim();
+		if (mode === 'attr' && attr) {
+			mode = 'attr:' + attr;
+		}
+		return {
+			selector: proposal.selector || '',
+			mode: mode
+		};
+	}
+
+	function applySequentialProposals(proposals) {
+		if (!proposals || !proposals.length || !form) {
+			return;
+		}
+		clearSlotsForSequentialApply();
+		proposals.forEach(function (proposal) {
+			var index = parseInt(proposal.index, 10);
+			if (isNaN(index) || index < 0) {
+				return;
+			}
+			applyCandidateRowToSlot(index, candidateRowFromProposal(proposal));
+		});
+		markStep4Updated();
+		scheduleExtractPreviewRefresh();
+	}
+
+	function renderSequentialProposalActions(data, container) {
+		var proposals = data.sequential_proposals || [];
+		if (!proposals.length || !container) {
+			return;
+		}
+		var preview = data.scope_preview || {};
+		if (preview.preview_source === 'form') {
+			return;
+		}
+		var actions = document.createElement('div');
+		actions.className = 'crb-discover-proposal-actions';
+		var hint = document.createElement('p');
+		hint.className = 'description crb-discover-results__hint';
+		hint.textContent = i18n.sequentialProposalHint || '';
+		actions.appendChild(hint);
+		var btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'button button-secondary';
+		btn.textContent = i18n.applySequentialProposals || '提案を④に反映';
+		btn.addEventListener('click', function () {
+			applySequentialProposals(proposals);
+			window.setTimeout(function () {
+				discoverElements();
+			}, 50);
+		});
+		actions.appendChild(btn);
+		container.appendChild(actions);
 	}
 
 	function applyCandidateRowToSlot(slotIndex, row) {
@@ -437,7 +556,10 @@
 			return;
 		}
 
-		setSlotField(slotIndex, selector, mapCandidateModeToSlotMode(mode, slotIndex), force);
+		setSlotField(slotIndex, selector, mapCandidateModeToSlotMode(mode, slotIndex), {
+			force: true,
+			attr: candidateAttrName(mode)
+		});
 		markStep4Updated();
 		scheduleExtractPreviewRefresh();
 	}
@@ -449,14 +571,18 @@
 		empty.value = '';
 		empty.textContent = '—';
 		select.appendChild(empty);
-		for (var i = 0; i < CRB_SLOT_COUNT; i++) {
+		// {%1%}=index0, {%2%}=index1 は④専用。③では {%3%}（index2）からのみ選択可。
+		for (var i = 2; i < CRB_SLOT_COUNT; i++) {
 			var opt = document.createElement('option');
 			opt.value = String(i);
 			opt.textContent = slotToken(i);
 			select.appendChild(opt);
 		}
 		if (initialValue !== '' && initialValue !== null && initialValue !== undefined) {
-			select.value = String(initialValue);
+			var picked = parseInt(initialValue, 10);
+			if (!isNaN(picked) && picked >= 2) {
+				select.value = String(picked);
+			}
 		}
 		return select;
 	}
@@ -487,12 +613,19 @@
 		if (!container || !candidates || !candidates.rows || !candidates.rows.length) {
 			return;
 		}
+		var details = document.createElement('details');
+		details.className = 'crb-extract-candidates-details';
+		var summary = document.createElement('summary');
+		var countLabel = i18n.extractCandidatesCount || '%d 件';
+		var countText = countLabel.replace('%d', String(candidates.row_count || candidates.rows.length));
+		summary.textContent =
+			(i18n.extractCandidatesAdvanced || '詳細: 候補一覧（上級者向け）') + ' — ' + countText;
+		details.appendChild(summary);
+
 		var box = document.createElement('div');
 		box.className = 'crb-extract-candidates';
 		var title = document.createElement('p');
 		title.className = 'crb-extract-candidates__title';
-		var countLabel = i18n.extractCandidatesCount || '%d 件';
-		var countText = countLabel.replace('%d', String(candidates.row_count || candidates.rows.length));
 		title.textContent =
 			(i18n.extractCandidatesLead || '範囲内で取れる値の一覧') + ' — ' + countText;
 		box.appendChild(title);
@@ -507,7 +640,9 @@
 		var maxToken = '{%' + CRB_SLOT_COUNT + '%}';
 		slotHint.textContent =
 			i18n.extractCandidatesSlotHint ||
-			('回数は範囲内の一致件数です。スロット列で {%1%}〜' + maxToken + ' を選ぶと、④の欄にセレクタと取り方が入ります。');
+			('回数は範囲内の一致件数です。{%1%}・{%2%} は④で設定します。スロット列では {%3%}〜' +
+				maxToken +
+				' を選ぶと、④の追加スロット欄に入ります。');
 		box.appendChild(slotHint);
 		var wrap = document.createElement('div');
 		wrap.className = 'crb-extract-candidates__table-wrap';
@@ -569,6 +704,120 @@
 		table.appendChild(tbody);
 		wrap.appendChild(table);
 		box.appendChild(wrap);
+		details.appendChild(box);
+		container.appendChild(details);
+	}
+
+	function renderScopeSlotPreview(data, container) {
+		if (!container || !data) {
+			return;
+		}
+		var preview = data.scope_preview || null;
+		if (!preview) {
+			return;
+		}
+		var items = preview.item_previews || [];
+		if (!items.length && preview.rows && preview.rows.length) {
+			items = [{ index: 0, rows: preview.rows }];
+		}
+		if (!items.length) {
+			return;
+		}
+
+		var hasAnyAssigned = false;
+		items.forEach(function (item) {
+			(item.rows || []).forEach(function (row) {
+				var idx = parseInt(row.index, 10);
+				if (idx === 0 || idx === 1) {
+					hasAnyAssigned = true;
+					return;
+				}
+				var sel = (row.selector || '').trim();
+				if (sel !== '' && sel !== '—') {
+					hasAnyAssigned = true;
+				}
+			});
+		});
+		if (!hasAnyAssigned) {
+			return;
+		}
+
+		var box = document.createElement('div');
+		box.className = 'crb-discover-sample-records';
+		var title = document.createElement('p');
+		title.className = 'crb-discover-sample-records__title';
+		title.textContent = i18n.scopeSlotPreviewTitle || '試し読み';
+		box.appendChild(title);
+
+		if (preview.context_note) {
+			var note = document.createElement('p');
+			note.className = 'description crb-discover-results__hint';
+			note.textContent = preview.context_note;
+			box.appendChild(note);
+		}
+
+		items.forEach(function (item, itemIndex) {
+			var assignedRows = (item.rows || []).filter(function (row) {
+				var idx = parseInt(row.index, 10);
+				// {%1%}・{%2%} は④の固定行。セレクタ未設定でも試し読みに常に表示する。
+				if (idx === 0 || idx === 1) {
+					return true;
+				}
+				return (row.selector || '').trim() !== '' && (row.selector || '').trim() !== '—';
+			});
+			if (!assignedRows.length) {
+				return;
+			}
+			assignedRows.sort(function (a, b) {
+				return (parseInt(a.index, 10) || 0) - (parseInt(b.index, 10) || 0);
+			});
+
+			var itemTitle = document.createElement('p');
+			itemTitle.className = 'crb-discover-slot-rules__title';
+			var itemLabel = i18n.scopeSlotPreviewItem || '%d件目';
+			itemTitle.textContent = itemLabel.replace('%d', String(itemIndex + 1));
+			box.appendChild(itemTitle);
+
+			var wrap = document.createElement('div');
+			wrap.className = 'crb-extract-candidates__table-wrap';
+			var table = document.createElement('table');
+			table.className =
+				'widefat striped crb-discover-preview-table crb-discover-slot-rules__table';
+			table.innerHTML =
+				'<thead><tr><th>' +
+				(i18n.colSlot || 'スロット') +
+				'</th><th>CSS セレクタ</th><th>' +
+				(i18n.colExtract || '取り方') +
+				'</th><th>' +
+				(i18n.colValue || '取れた値') +
+				'</th></tr></thead>';
+			var tbody = document.createElement('tbody');
+			assignedRows.forEach(function (row) {
+				var tr = document.createElement('tr');
+				tr.innerHTML =
+					'<td><code class="crb-discover-token"></code></td><td><code class="crb-discover-selector"></code></td><td class="crb-discover-mode"></td><td class="crb-discover-value"></td>';
+				tr.querySelector('.crb-discover-token').textContent = row.token || slotToken(row.index);
+				tr.querySelector('.crb-discover-selector').textContent = row.selector || '';
+				tr.querySelector('.crb-discover-mode').textContent = row.mode_label || row.mode || '';
+				var valueCell = tr.querySelector('.crb-discover-value');
+				var val = (row.value || '').trim();
+				if (!val) {
+					valueCell.textContent = i18n.scopeSlotEmpty || '—';
+				} else if (row.is_html && val.indexOf('<') !== -1) {
+					var pre = document.createElement('pre');
+					pre.className = 'crb-slot-line__html';
+					pre.textContent = val;
+					valueCell.appendChild(pre);
+				} else {
+					valueCell.textContent = val;
+				}
+				tbody.appendChild(tr);
+			});
+			table.appendChild(tbody);
+			wrap.appendChild(table);
+			box.appendChild(wrap);
+		});
+
 		container.appendChild(box);
 	}
 
@@ -626,6 +875,8 @@
 			'';
 
 		wrap.innerHTML = '';
+		renderScopeSlotPreview(data, wrap);
+		renderSequentialProposalActions(data, wrap);
 		if (candidates && candidates.rows && candidates.rows.length) {
 			renderExtractCandidatesTable(candidates, wrap);
 		} else if (data.extract_candidates_error) {
@@ -633,7 +884,7 @@
 			errP.className = 'notice notice-error inline';
 			errP.textContent = data.extract_candidates_error;
 			wrap.appendChild(errP);
-		} else {
+		} else if (!wrap.querySelector('.crb-discover-sample-records')) {
 			var emptyP = document.createElement('p');
 			emptyP.className = 'description';
 			emptyP.textContent = i18n.empty || '';
@@ -851,6 +1102,9 @@
 	if (titleMode) {
 		titleMode.addEventListener('change', toggleSlotAttrFields);
 	}
+	form.querySelectorAll('.crb-slot-mode').forEach(function (el) {
+		el.addEventListener('change', toggleSlotAttrFields);
+	});
 	toggleSlotAttrFields();
 
 	var applySampleBtn = document.getElementById('crb-apply-preset-sample');
@@ -1240,4 +1494,186 @@
 				btn.disabled = false;
 			});
 	});
+})();
+
+(function () {
+	'use strict';
+
+	var cfg = window.crbAdmin || {};
+	var i18n = cfg.i18n || {};
+	var listForm = document.getElementById('crb-feed-list-form');
+	if (!listForm) {
+		return;
+	}
+
+	function getFeedCheckboxes() {
+		return listForm.querySelectorAll('.crb-feed-checkbox');
+	}
+
+	function syncSelectAll(checked) {
+		getFeedCheckboxes().forEach(function (box) {
+			box.checked = checked;
+		});
+	}
+
+	function syncSelectAllState() {
+		var boxes = getFeedCheckboxes();
+		var checkedCount = 0;
+		boxes.forEach(function (box) {
+			if (box.checked) {
+				checkedCount += 1;
+			}
+		});
+		var allChecked = boxes.length > 0 && checkedCount === boxes.length;
+		['crb-select-all-feeds', 'crb-select-all-feeds-bottom'].forEach(function (id) {
+			var master = document.getElementById(id);
+			if (master) {
+				master.checked = allChecked;
+				master.indeterminate = checkedCount > 0 && !allChecked;
+			}
+		});
+	}
+
+	['crb-select-all-feeds', 'crb-select-all-feeds-bottom'].forEach(function (id) {
+		var master = document.getElementById(id);
+		if (!master) {
+			return;
+		}
+		master.addEventListener('change', function () {
+			syncSelectAll(master.checked);
+			syncSelectAllState();
+		});
+	});
+
+	getFeedCheckboxes().forEach(function (box) {
+		box.addEventListener('change', syncSelectAllState);
+	});
+	syncSelectAllState();
+
+	function getSelectedBulkAction() {
+		var top = document.getElementById('crb-bulk-action-selector-top');
+		var bottom = document.getElementById('crb-bulk-action-selector-bottom');
+		var value = top && top.value !== '-1' ? top.value : '';
+		if (!value && bottom && bottom.value !== '-1') {
+			value = bottom.value;
+		}
+		return value;
+	}
+
+	function hasSelectedFeeds() {
+		var boxes = getFeedCheckboxes();
+		for (var i = 0; i < boxes.length; i += 1) {
+			if (boxes[i].checked) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	listForm.addEventListener('submit', function (event) {
+		var action = getSelectedBulkAction();
+		if (!hasSelectedFeeds()) {
+			event.preventDefault();
+			window.alert(i18n.bulkSelectFeeds || 'フィードを1件以上選択してください。');
+			return;
+		}
+		if (!action) {
+			event.preventDefault();
+			window.alert(i18n.bulkChooseAction || '一括操作を選択してください。');
+			return;
+		}
+		if (action === 'delete') {
+			var message = i18n.bulkDeleteConfirm || '選択したフィードを削除します。よろしいですか？';
+			if (!window.confirm(message)) {
+				event.preventDefault();
+			}
+		}
+	});
+})();
+
+(function () {
+	'use strict';
+
+	function looksLikeRegexSource(value) {
+		var s = (value || '').trim();
+		if (!s) {
+			return false;
+		}
+		if (/^([\/#~%])[\s\S]+\1[imsxuADSUXJ]*$/.test(s)) {
+			return true;
+		}
+		if (s.charAt(0) === '^' || s.indexOf('(?:') !== -1) {
+			return true;
+		}
+		return false;
+	}
+
+	function syncLinkRewriteMode(ruleEl) {
+		if (!ruleEl) {
+			return;
+		}
+		var checkbox = ruleEl.querySelector('.crb-link-rewrite-use-regex');
+		var fields = ruleEl.querySelector('.crb-link-rewrite-prefix-fields');
+		var source = ruleEl.querySelector('.crb-link-rewrite-source-input');
+		if (checkbox && source && !checkbox.checked && looksLikeRegexSource(source.value)) {
+			checkbox.checked = true;
+		}
+		if (!checkbox || !fields) {
+			return;
+		}
+		fields.setAttribute('data-mode', checkbox.checked ? 'regex' : 'prefix');
+		var target = ruleEl.querySelector('.crb-link-rewrite-target-input');
+		if (source) {
+			source.setAttribute(
+				'placeholder',
+				checkbox.checked
+					? '^https?://(?:www\\\\.)?duga\\\\.jp(/ppv/[a-z0-9][a-z0-9\\\\-]*-\\\\d+)/?'
+					: 'https://example.com/list/item/'
+			);
+		}
+		if (target) {
+			target.setAttribute(
+				'placeholder',
+				checkbox.checked
+					? 'https://click.duga.jp$1/24697-03'
+					: 'https://aff.example.net/track/'
+			);
+		}
+	}
+
+	function bindLinkRewriteRegexToggles(root) {
+		var scope = root || document;
+		var rules = scope.querySelectorAll('.crb-link-rewrite-rule');
+		for (var i = 0; i < rules.length; i += 1) {
+			syncLinkRewriteMode(rules[i]);
+			var checkbox = rules[i].querySelector('.crb-link-rewrite-use-regex');
+			var source = rules[i].querySelector('.crb-link-rewrite-source-input');
+			if (checkbox && checkbox.getAttribute('data-crb-bound') !== '1') {
+				checkbox.setAttribute('data-crb-bound', '1');
+				checkbox.addEventListener('change', function (event) {
+					var ruleEl = event.target.closest
+						? event.target.closest('.crb-link-rewrite-rule')
+						: null;
+					syncLinkRewriteMode(ruleEl);
+				});
+			}
+			if (source && source.getAttribute('data-crb-bound') !== '1') {
+				source.setAttribute('data-crb-bound', '1');
+				source.addEventListener('input', function (event) {
+					var ruleEl = event.target.closest
+						? event.target.closest('.crb-link-rewrite-rule')
+						: null;
+					syncLinkRewriteMode(ruleEl);
+				});
+			}
+		}
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', function () {
+			bindLinkRewriteRegexToggles(document);
+		});
+	} else {
+		bindLinkRewriteRegexToggles(document);
+	}
 })();

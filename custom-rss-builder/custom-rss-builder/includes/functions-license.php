@@ -15,6 +15,17 @@ define( 'CRB_LICENSE_FREE_FEED_LIMIT', 1 );
 define( 'CRB_LICENSE_STANDARD_FEED_LIMIT', 3 );
 /** Pro プランで作成できるフィード数の上限 */
 define( 'CRB_LICENSE_PRO_FEED_LIMIT', 10 );
+/**
+ * Unlimited プラン（Pro 上位互換・非公開）のフィード数上限。
+ * 0 = 無制限。
+ */
+define( 'CRB_LICENSE_SPECIAL_FEED_LIMIT', 0 );
+/** 無料プランで有効化できる WordPress サイト数 */
+define( 'CRB_LICENSE_FREE_SITE_LIMIT', 1 );
+/** スタンダードプランで有効化できる WordPress サイト数 */
+define( 'CRB_LICENSE_STANDARD_SITE_LIMIT', 1 );
+/** Pro プランで有効化できる WordPress サイト数 */
+define( 'CRB_LICENSE_PRO_SITE_LIMIT', 10 );
 /** 無料プランで使えるスロット数（{%1%}〜{%n%}。タイトル・リンク含む） */
 define( 'CRB_LICENSE_FREE_SLOT_LIMIT', 3 );
 /** スタンダードプランで使えるスロット数（{%1%}〜{%n%}） */
@@ -74,7 +85,10 @@ function crb_license_standard_payment_url() {
 	/**
 	 * @param string $url Default Standard payment URL.
 	 */
-	return (string) apply_filters( 'crb_standard_payment_url', '' );
+	return (string) apply_filters(
+		'crb_standard_payment_url',
+		'https://www.wordpress-123.com/payment/f2pset.php?code=15&mode=button'
+	);
 }
 
 /**
@@ -842,7 +856,7 @@ function crb_license_setup_free_local() {
 			}
 			$result = array(
 				'success' => true,
-				'license' => $manager->format_public_license( $activated ),
+				'license' => $manager->format_public_license( $activated, $site ),
 			);
 			crb_license_apply_remote_result( $result );
 			return $result;
@@ -864,7 +878,7 @@ function crb_license_setup_free_local() {
 
 	$result = array(
 		'success' => true,
-		'license' => $manager->format_public_license( $activated ),
+		'license' => $manager->format_public_license( $activated, $site ),
 	);
 	crb_license_apply_remote_result( $result );
 
@@ -922,7 +936,7 @@ function crb_license_switch_to_free_local() {
 
 	$result = array(
 		'success' => true,
-		'license' => $manager->format_public_license( $activated ),
+		'license' => $manager->format_public_license( $activated, $site ),
 	);
 	crb_license_apply_remote_result( $result );
 
@@ -1051,13 +1065,49 @@ function crb_license_get_record_slot_count() {
 		return (int) CRB_LICENSE_FREE_SLOT_LIMIT;
 	}
 	$plan = sanitize_key( (string) ( crb_license_get_state()['plan'] ?? '' ) );
-	if ( 'pro' === $plan ) {
+	if ( crb_license_is_pro_tier( $plan ) ) {
 		return defined( 'CRB_RECORD_SLOT_COUNT' ) ? (int) CRB_RECORD_SLOT_COUNT : 20;
 	}
 	if ( 'standard' === $plan ) {
 		return (int) CRB_LICENSE_STANDARD_SLOT_LIMIT;
 	}
 	return (int) CRB_LICENSE_FREE_SLOT_LIMIT;
+}
+
+/**
+ * Pro 相当（Pro / Unlimited）プランか。
+ *
+ * Unlimited（内部スラッグ special）は Pro の上位互換（非公開プラン）で、
+ * フィード数は無制限。機能面は Pro と同等に扱う。
+ *
+ * @param string $plan Plan slug.
+ * @return bool
+ */
+function crb_license_is_pro_tier( $plan ) {
+	return in_array( sanitize_key( (string) $plan ), array( 'pro', 'special' ), true );
+}
+
+/**
+ * フィード数上限が無制限のプランか。
+ *
+ * @param string $plan Plan slug.
+ * @return bool
+ */
+function crb_license_feed_limit_is_unlimited( $plan ) {
+	return 'special' === sanitize_key( (string) $plan );
+}
+
+/**
+ * フィード上限の表示用ラベル（無制限 or 数値）。
+ *
+ * @param string $plan Plan slug.
+ * @return string
+ */
+function crb_license_format_feed_limit_label( $plan ) {
+	if ( crb_license_feed_limit_is_unlimited( $plan ) ) {
+		return __( '無制限', 'custom-rss-builder' );
+	}
+	return (string) (int) crb_license_feed_limit_for_plan( $plan );
 }
 
 /**
@@ -1208,13 +1258,15 @@ function crb_license_can( $feature ) {
 	}
 
 	$plan = $state['plan'];
-	if ( 'pro' === $plan ) {
+	if ( crb_license_is_pro_tier( $plan ) ) {
 		$feed_count = crb_license_feed_count();
+		$feed_limit = (int) crb_license_feed_limit_for_plan( $plan );
+		$unlimited  = crb_license_feed_limit_is_unlimited( $plan );
 		switch ( $feature ) {
 			case 'create_feed':
-				return $feed_count < (int) CRB_LICENSE_PRO_FEED_LIMIT;
+				return $unlimited || $feed_count < $feed_limit;
 			case 'save':
-				return $feed_count <= (int) CRB_LICENSE_PRO_FEED_LIMIT;
+				return $unlimited || $feed_count <= $feed_limit;
 			case 'ai_transform':
 			case 'import_tag_sources':
 				return true;
@@ -1285,6 +1337,8 @@ function crb_license_free_feed_count() {
  */
 function crb_license_feed_limit_for_plan( $plan ) {
 	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
+			return (int) CRB_LICENSE_SPECIAL_FEED_LIMIT;
 		case 'pro':
 			return (int) CRB_LICENSE_PRO_FEED_LIMIT;
 		case 'standard':
@@ -1300,8 +1354,27 @@ function crb_license_feed_limit_for_plan( $plan ) {
  * @param string $plan Plan slug.
  * @return int
  */
+function crb_license_site_limit_for_plan( $plan ) {
+	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
+		case 'pro':
+			return (int) CRB_LICENSE_PRO_SITE_LIMIT;
+		case 'standard':
+			return (int) CRB_LICENSE_STANDARD_SITE_LIMIT;
+		case 'free':
+			return (int) CRB_LICENSE_FREE_SITE_LIMIT;
+		default:
+			return 0;
+	}
+}
+
+/**
+ * @param string $plan Plan slug.
+ * @return int
+ */
 function crb_license_slot_limit_for_plan( $plan ) {
 	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
 		case 'pro':
 			return (int) crb_license_pro_slot_count();
 		case 'standard':
@@ -1332,11 +1405,15 @@ function crb_license_denied_message( $feature ) {
 
 	switch ( $feature ) {
 		case 'create_feed':
-			if ( 'pro' === $plan ) {
+			if ( crb_license_is_pro_tier( $plan ) ) {
+				if ( crb_license_feed_limit_is_unlimited( $plan ) ) {
+					return __( 'この操作は現在のプランでは利用できません。', 'custom-rss-builder' );
+				}
 				return sprintf(
-					/* translators: %d: max feeds on pro plan */
-					__( 'Pro プランではフィードは %d 件までです。', 'custom-rss-builder' ),
-					(int) CRB_LICENSE_PRO_FEED_LIMIT
+					/* translators: 1: plan label, 2: max feeds */
+					__( '%1$s プランではフィードは %2$d 件までです。', 'custom-rss-builder' ),
+					crb_license_plan_label( $plan ),
+					(int) crb_license_feed_limit_for_plan( $plan )
 				);
 			}
 			if ( 'standard' === $plan ) {
@@ -1352,11 +1429,16 @@ function crb_license_denied_message( $feature ) {
 				(int) CRB_LICENSE_FREE_FEED_LIMIT
 			);
 		case 'save':
-			if ( 'pro' === $plan && crb_license_feed_count() > (int) CRB_LICENSE_PRO_FEED_LIMIT ) {
+			if (
+				crb_license_is_pro_tier( $plan )
+				&& ! crb_license_feed_limit_is_unlimited( $plan )
+				&& crb_license_feed_count() > (int) crb_license_feed_limit_for_plan( $plan )
+			) {
 				return sprintf(
-					/* translators: %d: max feeds on pro plan */
-					__( 'Pro プランではフィードは %d 件までです。上限を超えているため保存できません。', 'custom-rss-builder' ),
-					(int) CRB_LICENSE_PRO_FEED_LIMIT
+					/* translators: 1: plan label, 2: max feeds */
+					__( '%1$s プランではフィードは %2$d 件までです。上限を超えているため保存できません。', 'custom-rss-builder' ),
+					crb_license_plan_label( $plan ),
+					(int) crb_license_feed_limit_for_plan( $plan )
 				);
 			}
 			if ( 'standard' === $plan && crb_license_feed_count() > (int) CRB_LICENSE_STANDARD_FEED_LIMIT ) {
@@ -1439,6 +1521,8 @@ function crb_license_pro_slot_count() {
  */
 function crb_license_plan_label( $plan ) {
 	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
+			return __( 'Unlimited', 'custom-rss-builder' );
 		case 'pro':
 			return __( 'Pro', 'custom-rss-builder' );
 		case 'standard':
@@ -1551,6 +1635,24 @@ function crb_license_plan_comparison_rows() {
 
 	return array(
 		array(
+			'label'    => __( 'WordPress サイト数', 'custom-rss-builder' ),
+			'free'     => sprintf(
+				/* translators: %d: max sites */
+				__( '%d 台まで', 'custom-rss-builder' ),
+				(int) CRB_LICENSE_FREE_SITE_LIMIT
+			),
+			'standard' => sprintf(
+				/* translators: %d: max sites on standard plan */
+				__( '%d 台まで', 'custom-rss-builder' ),
+				(int) CRB_LICENSE_STANDARD_SITE_LIMIT
+			),
+			'pro'      => sprintf(
+				/* translators: %d: max sites on pro plan */
+				__( '%d 台まで', 'custom-rss-builder' ),
+				(int) CRB_LICENSE_PRO_SITE_LIMIT
+			),
+		),
+		array(
 			'label'    => __( 'フィード数', 'custom-rss-builder' ),
 			'free'     => sprintf(
 				/* translators: %d: max feeds */
@@ -1630,8 +1732,9 @@ function crb_license_plan_comparison_rows() {
  */
 function crb_license_free_plan_summary() {
 	return sprintf(
-		/* translators: 1: feed limit, 2: slot limit */
-		__( 'フィード %1$d 件・スロット %2$d つ・RSS・抽出・保存・投稿取り込み（手動・自動）', 'custom-rss-builder' ),
+		/* translators: 1: site limit, 2: feed limit, 3: slot limit */
+		__( 'WordPress %1$d 台・フィード %2$d 件・スロット %3$d つ・RSS・抽出・保存・投稿取り込み（手動・自動）', 'custom-rss-builder' ),
+		(int) CRB_LICENSE_FREE_SITE_LIMIT,
 		(int) CRB_LICENSE_FREE_FEED_LIMIT,
 		(int) CRB_LICENSE_FREE_SLOT_LIMIT
 	);
@@ -1642,8 +1745,9 @@ function crb_license_free_plan_summary() {
  */
 function crb_license_standard_plan_summary() {
 	return sprintf(
-		/* translators: 1: feed limit, 2: standard slot range label */
-		__( 'フィード %1$d 件まで・スロット %2$s', 'custom-rss-builder' ),
+		/* translators: 1: site limit, 2: feed limit, 3: standard slot range label */
+		__( 'WordPress %1$d 台・各サイトでフィード %2$d 件まで・スロット %3$s', 'custom-rss-builder' ),
+		(int) CRB_LICENSE_STANDARD_SITE_LIMIT,
 		(int) CRB_LICENSE_STANDARD_FEED_LIMIT,
 		crb_license_format_slot_range_text( (int) CRB_LICENSE_STANDARD_SLOT_LIMIT )
 	);
@@ -1654,8 +1758,9 @@ function crb_license_standard_plan_summary() {
  */
 function crb_license_pro_plan_summary() {
 	return sprintf(
-		/* translators: 1: feed limit, 2: pro slot range label */
-		__( 'フィード %1$d 件まで・スロット %2$s', 'custom-rss-builder' ),
+		/* translators: 1: site limit, 2: feed limit per site, 3: pro slot range label */
+		__( 'WordPress %1$d 台まで・各サイトでフィード %2$d 件まで・スロット %3$s', 'custom-rss-builder' ),
+		(int) CRB_LICENSE_PRO_SITE_LIMIT,
 		(int) CRB_LICENSE_PRO_FEED_LIMIT,
 		crb_license_format_slot_range_text( (int) crb_license_pro_slot_count() )
 	);
@@ -1703,6 +1808,8 @@ function crb_license_apply_remote_result( $result ) {
 		} elseif ( 'crb_ls_not_found' === $code ) {
 			$patch['status'] = 'inactive';
 		} elseif ( 'crb_ls_site_mismatch' === $code ) {
+			$patch['status'] = 'inactive';
+		} elseif ( 'crb_ls_site_limit_reached' === $code ) {
 			$patch['status'] = 'inactive';
 		}
 		crb_license_update_settings( $patch );

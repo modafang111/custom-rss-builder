@@ -66,12 +66,14 @@ function crb_get_feed_css_config( array $feed ) {
 		'category_selector'     => (string) ( $css['category_selector'] ?? '' ),
 		'review_body_selector'  => (string) ( $css['review_body_selector'] ?? '' ),
 	);
-	foreach ( crb_extra_slot_storage_map() as $meta ) {
+	foreach ( crb_extra_slot_storage_map() as $index => $meta ) {
 		$key = $meta['config_key'];
 		if ( ! isset( $base[ $key ] ) ) {
 			$base[ $key ] = (string) ( $css[ $key ] ?? '' );
 		}
 		$base[ $meta['mode_key'] ] = (string) ( $css[ $meta['mode_key'] ] ?? $meta['default_mode'] );
+		$attr_key                   = 'slot_attr_' . ( (int) $index + 1 );
+		$base[ $attr_key ]          = (string) ( $css[ $attr_key ] ?? '' );
 	}
 	return $base;
 }
@@ -158,7 +160,9 @@ function crb_sanitize_css_config( $raw ) {
 		'item_selector'         => crb_sanitize_css_selector( (string) ( $raw['item_selector'] ?? '' ) ),
 		'link_selector'         => crb_sanitize_css_selector( (string) ( $raw['link_selector'] ?? '' ) ),
 		'title_mode'            => $title_mode,
-		'title_attr'            => crb_sanitize_css_attr_name( (string) ( $raw['title_attr'] ?? 'title' ) ),
+		'title_attr'            => ( '' !== sanitize_key( (string) ( $raw['title_attr'] ?? '' ) ) )
+			? crb_sanitize_css_attr_name( (string) $raw['title_attr'] )
+			: 'title',
 		'title_selector'        => crb_sanitize_css_selector( (string) ( $raw['title_selector'] ?? '' ) ),
 		'image_selector'        => crb_sanitize_css_selector( (string) ( $raw['image_selector'] ?? '' ) ),
 		'author_selector'       => crb_sanitize_css_selector( (string) ( $raw['author_selector'] ?? '' ) ),
@@ -176,8 +180,13 @@ function crb_sanitize_css_config( $raw ) {
 			(string) ( $raw[ $meta['mode_key'] ] ?? $meta['default_mode'] )
 		);
 		if ( 'attr' === $out[ $meta['mode_key'] ] ) {
-			$attr_key = 'slot_attr_' . ( $index + 1 );
-			$out[ $attr_key ] = crb_sanitize_css_attr_name( (string) ( $raw[ $attr_key ] ?? 'title' ) );
+			$attr_key         = 'slot_attr_' . ( $index + 1 );
+			$attr_raw         = isset( $raw[ $attr_key ] ) ? (string) $raw[ $attr_key ] : '';
+			$out[ $attr_key ] = crb_sanitize_css_attr_name( $attr_raw );
+			// 未指定時に title へ黙って落とさない（pid 等が消えて空抽出になるのを防ぐ）
+			if ( '' === $out[ $attr_key ] ) {
+				$out[ $attr_key ] = '';
+			}
 		}
 	}
 	if ( function_exists( 'crb_license_apply_slot_limits' ) ) {
@@ -217,7 +226,7 @@ function crb_sanitize_css_selector( $selector ) {
  */
 function crb_sanitize_css_attr_name( $name ) {
 	$name = sanitize_key( (string) $name );
-	return '' !== $name ? $name : 'title';
+	return $name;
 }
 
 /**
@@ -250,6 +259,75 @@ function crb_empty_css_config() {
 		$out[ $meta['mode_key'] ]   = $meta['default_mode'];
 	}
 	return $out;
+}
+
+/**
+ * Discover AJAX POST から CSS 設定を組み立てる（css_ 有無どちらにも対応）。
+ *
+ * @param string $scope_selector Scope.
+ * @param string $item_selector  Item block.
+ * @return array<string, string>
+ */
+function crb_css_config_from_discover_request( $scope_selector = '', $item_selector = '' ) {
+	$pick = static function ( $key ) {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( isset( $_POST[ $key ] ) ) {
+			return wp_unslash( $_POST[ $key ] );
+		}
+		$css_key = 'css_' . $key;
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ( isset( $_POST[ $css_key ] ) ) {
+			return wp_unslash( $_POST[ $css_key ] );
+		}
+		return '';
+	};
+
+	$raw = array(
+		'scope_selector'        => (string) $scope_selector,
+		'item_selector'         => (string) $item_selector,
+		'link_selector'         => (string) $pick( 'link_selector' ),
+		'title_mode'            => (string) $pick( 'title_mode' ),
+		'title_attr'            => (string) $pick( 'title_attr' ),
+		'title_selector'        => (string) $pick( 'title_selector' ),
+		'image_selector'        => (string) $pick( 'image_selector' ),
+		'author_selector'       => (string) $pick( 'author_selector' ),
+		'review_title_selector' => (string) $pick( 'review_title_selector' ),
+		'summary_selector'      => (string) $pick( 'summary_selector' ),
+		'category_selector'     => (string) $pick( 'category_selector' ),
+		'review_body_selector'  => (string) $pick( 'review_body_selector' ),
+	);
+	foreach ( crb_extra_slot_storage_map() as $index => $meta ) {
+		$key = $meta['config_key'];
+		if ( ! isset( $raw[ $key ] ) ) {
+			$raw[ $key ] = (string) $pick( $key );
+		}
+		$mode_key         = $meta['mode_key'];
+		$raw[ $mode_key ] = (string) $pick( $mode_key );
+		$attr_key         = 'slot_attr_' . ( (int) $index + 1 );
+		$raw[ $attr_key ] = (string) $pick( $attr_key );
+	}
+	return crb_sanitize_css_config( $raw );
+}
+
+/**
+ * スロットにセレクタが1つでも入っているか。
+ *
+ * @param array<string, string> $config CSS config.
+ * @return bool
+ */
+function crb_css_config_has_assigned_slots( array $config ) {
+	if ( '' !== trim( (string) ( $config['link_selector'] ?? '' ) ) ) {
+		return true;
+	}
+	if ( '' !== trim( (string) ( $config['title_selector'] ?? '' ) ) ) {
+		return true;
+	}
+	foreach ( crb_extra_slot_storage_map() as $meta ) {
+		if ( '' !== trim( (string) ( $config[ $meta['config_key'] ] ?? '' ) ) ) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**

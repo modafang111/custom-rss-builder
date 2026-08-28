@@ -183,5 +183,11 @@ function crb_ai_settings_editable_for_current_license() {
 		return false;
 	}
 	$state = crb_license_get_state();
-	return ! empty( $state['usable'] ) && 'pro' === (string) ( $state['plan'] ?? '' );
+	if ( empty( $state['usable'] ) ) {
+		return false;
+	}
+	if ( function_exists( 'crb_license_is_pro_tier' ) ) {
+		return crb_license_is_pro_tier( (string) ( $state['plan'] ?? '' ) );
+	}
+	return 'pro' === (string) ( $state['plan'] ?? '' );
 }

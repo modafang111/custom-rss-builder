@@ -73,6 +73,13 @@ function crb_ls_pro_payment_url() {
 }
 
 /**
+ * @return string
+ */
+function crb_ls_standard_payment_url() {
+	return function_exists( 'crb_license_standard_payment_url' ) ? crb_license_standard_payment_url() : '';
+}
+
+/**
  * @param string $email Email.
  * @return bool
  */
@@ -113,6 +120,26 @@ function crb_ls_normalize_site_url( $site_url ) {
 }
 
 /**
+ * プランごとの WordPress サイト（有効化）上限。
+ *
+ * @param string $plan free|standard|pro
+ * @return int
+ */
+function crb_ls_site_limit_for_plan( $plan ) {
+	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
+		case 'pro':
+			return defined( 'CRB_LICENSE_PRO_SITE_LIMIT' ) ? (int) CRB_LICENSE_PRO_SITE_LIMIT : 10;
+		case 'standard':
+			return defined( 'CRB_LICENSE_STANDARD_SITE_LIMIT' ) ? (int) CRB_LICENSE_STANDARD_SITE_LIMIT : 1;
+		case 'free':
+			return defined( 'CRB_LICENSE_FREE_SITE_LIMIT' ) ? (int) CRB_LICENSE_FREE_SITE_LIMIT : 1;
+		default:
+			return 0;
+	}
+}
+
+/**
  * @param string $provided Provided secret header.
  * @return bool
  */
@@ -143,11 +170,21 @@ function crb_ls_license_is_usable( array $license ) {
 
 /**
  * @param array<string, mixed> $license License row.
- * @return string free|standard|pro
+ * @return string free|standard|pro|special
  */
 function crb_ls_license_plan( array $license ) {
 	$plan = sanitize_key( (string) ( $license['plan'] ?? 'free' ) );
-	return in_array( $plan, array( 'free', 'standard', 'pro' ), true ) ? $plan : 'free';
+	return in_array( $plan, array( 'free', 'standard', 'pro', 'special' ), true ) ? $plan : 'free';
+}
+
+/**
+ * Pro 相当（Pro / Unlimited）プランか。Unlimited（special）は Pro の上位互換（非公開・フィード無制限）。
+ *
+ * @param string $plan Plan slug.
+ * @return bool
+ */
+function crb_ls_is_pro_tier( $plan ) {
+	return in_array( sanitize_key( (string) $plan ), array( 'pro', 'special' ), true );
 }
 
 /**
@@ -156,6 +193,8 @@ function crb_ls_license_plan( array $license ) {
  */
 function crb_ls_admin_plan_label( $plan ) {
 	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
+			return __( 'Unlimited（非公開）', 'crb-license-server' );
 		case 'pro':
 			return __( 'Pro', 'crb-license-server' );
 		case 'standard':
@@ -172,6 +211,8 @@ function crb_ls_admin_plan_label( $plan ) {
  */
 function crb_ls_mail_plan_label( $plan ) {
 	switch ( sanitize_key( (string) $plan ) ) {
+		case 'special':
+			return __( 'Unlimited（有料）', 'crb-license-server' );
 		case 'pro':
 			return __( 'Pro（有料）', 'crb-license-server' );
 		case 'standard':
@@ -298,26 +339,37 @@ function crb_ls_mail_plan_features_line( $plan ) {
 			: sprintf( '{%1%%}〜{%d%%}', $slots );
 
 		return sprintf(
-			/* translators: 1: max feeds, 2: slot range e.g. {%1%}〜{%5%} */
-			__( 'ご利用内容: フィード %1$d 件まで・スロット %2$s・自動取り込み 1 時間〜', 'crb-license-server' ),
+			/* translators: 1: max feeds per site, 2: slot range, 3: max WordPress sites */
+			__( 'ご利用内容: WordPress %3$d 台まで・各サイトでフィード %1$d 件まで・スロット %2$s・自動取り込み 1 時間〜', 'crb-license-server' ),
 			$feed_limit,
-			$range
+			$range,
+			crb_ls_site_limit_for_plan( 'standard' )
 		);
 	}
-	if ( 'pro' === $plan ) {
-		$feed_limit = defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10;
-		$slots      = function_exists( 'crb_license_pro_slot_count' )
+	if ( crb_ls_is_pro_tier( $plan ) ) {
+		$slots = function_exists( 'crb_license_pro_slot_count' )
 			? (int) crb_license_pro_slot_count()
 			: ( defined( 'CRB_RECORD_SLOT_COUNT' ) ? (int) CRB_RECORD_SLOT_COUNT : 20 );
-		$range      = function_exists( 'crb_license_format_slot_range_text' )
+		$range = function_exists( 'crb_license_format_slot_range_text' )
 			? crb_license_format_slot_range_text( $slots )
 			: sprintf( '{%1%%}〜{%d%%}', $slots );
 
+		if ( 'special' === $plan ) {
+			return sprintf(
+				/* translators: 1: slot range, 2: max WordPress sites */
+				__( 'ご利用内容: WordPress サイト %2$d 台まで・各サイトでフィード数無制限・スロット %1$s・AI テキスト変換', 'crb-license-server' ),
+				$range,
+				crb_ls_site_limit_for_plan( $plan )
+			);
+		}
+
+		$feed_limit = defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10;
 		return sprintf(
-			/* translators: 1: max feeds, 2: slot range e.g. {%1%}〜{%20%} */
-			__( 'ご利用内容: フィード %1$d 件まで・スロット %2$s・AI テキスト変換', 'crb-license-server' ),
+			/* translators: 1: max feeds per site, 2: slot range, 3: max WordPress sites */
+			__( 'ご利用内容: WordPress サイト %3$d 台まで・各サイトでフィード %1$d 件まで・スロット %2$s・AI テキスト変換', 'crb-license-server' ),
 			$feed_limit,
-			$range
+			$range,
+			crb_ls_site_limit_for_plan( $plan )
 		);
 	}
 
@@ -327,10 +379,11 @@ function crb_ls_mail_plan_features_line( $plan ) {
 		: sprintf( '{%1%%}〜{%d%%}', $free_slots );
 
 	return sprintf(
-		/* translators: 1: max feeds, 2: slot range */
-		__( 'ご利用内容: フィード %1$d 件・スロット %2$s', 'crb-license-server' ),
+		/* translators: 1: max feeds, 2: slot range, 3: max WordPress sites on free plan */
+		__( 'ご利用内容: WordPress %3$d 台・フィード %1$d 件・スロット %2$s', 'crb-license-server' ),
 		defined( 'CRB_LICENSE_FREE_FEED_LIMIT' ) ? (int) CRB_LICENSE_FREE_FEED_LIMIT : 1,
-		$range
+		$range,
+		crb_ls_site_limit_for_plan( 'free' )
 	);
 }
 
@@ -393,7 +446,7 @@ function crb_ls_mail_install_manual_block() {
  * @return string
  */
 function crb_ls_mail_ai_manual_block( $plan ) {
-	if ( 'pro' !== sanitize_key( (string) $plan ) ) {
+	if ( ! crb_ls_is_pro_tier( $plan ) ) {
 		return '';
 	}
 
@@ -451,7 +504,7 @@ function crb_ls_mail_feed_pack_manual_url() {
  */
 function crb_ls_mail_setup_service_block( $plan ) {
 	$plan = sanitize_key( (string) $plan );
-	if ( ! in_array( $plan, array( 'standard', 'pro' ), true ) ) {
+	if ( ! in_array( $plan, array( 'standard', 'pro', 'special' ), true ) ) {
 		return '';
 	}
 
@@ -513,8 +566,15 @@ function crb_ls_mail_activation_block( $plan ) {
 	$lines[] = __( '3. 「ライセンスキーを有効化」欄に、下記キーを貼り付けて「有効化」を押す', 'crb-license-server' );
 	$lines[] = __( '4. 「現在の状態」でプランと「このサイトで利用可：はい」を確認', 'crb-license-server' );
 
-	if ( in_array( sanitize_key( (string) $plan ), array( 'standard', 'pro' ), true ) ) {
-		$lines[] = __( '※ 1 つのキーは 1 サイトのみで利用できます（別サイトでは有効化できません）', 'crb-license-server' );
+	$plan = sanitize_key( (string) $plan );
+	if ( crb_ls_is_pro_tier( $plan ) ) {
+		$lines[] = sprintf(
+			/* translators: %d: max WordPress sites on pro plan */
+			__( '※ 1 つの Pro キーは最大 %d 台の WordPress サイトで有効化できます（各サイトのライセンス画面で同じキーを入力）', 'crb-license-server' ),
+			crb_ls_site_limit_for_plan( $plan )
+		);
+	} elseif ( in_array( $plan, array( 'free', 'standard' ), true ) ) {
+		$lines[] = __( '※ 無料・スタンダードのキーは 1 台の WordPress サイトのみで利用できます', 'crb-license-server' );
 	}
 
 	return implode( "\n", $lines );

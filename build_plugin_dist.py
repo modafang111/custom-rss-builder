@@ -209,6 +209,19 @@ def patch_main_plugin(content: str, variant: str) -> str:
     if variant not in HEADER_PATCHES:
         raise ValueError(f"unknown variant: {variant}")
 
+    version_m = re.search(r"define\(\s*'CRB_VERSION'\s*,\s*'([^']+)'\s*\)", content)
+    build_m = re.search(r"define\(\s*'CRB_BUILD_ID'\s*,\s*'([^']+)'\s*\)", content)
+    if version_m and build_m:
+        # WordPress の ZIP 比較画面は Version ヘッダしか見ないため、ビルド ID を含める。
+        wp_version = f"{version_m.group(1)}.{build_m.group(1)}"
+        content = re.sub(
+            r"^(\s*\*\s*Version:\s*).*$",
+            rf"\g<1>{wp_version}",
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+
     content = re.sub(
         r"define\(\s*'CRB_PACKAGE_VARIANT'\s*,\s*'[^']*'\s*\)\s*;\s*\n?",
         "",

@@ -580,6 +580,49 @@ switch ( $action ) {
 		$base = function_exists( 'crb_license_api_base' ) ? crb_license_api_base() : '';
 		crb_probe_ok( array( 'api_base' => $base ) );
 
+	case 'license_can_feature':
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$feature = isset( $_REQUEST['feature'] ) ? sanitize_key( (string) $_REQUEST['feature'] ) : '';
+		if ( '' === $feature ) {
+			crb_probe_fail( 'feature required' );
+		}
+		crb_probe_ok(
+			array(
+				'feature' => $feature,
+				'can'     => function_exists( 'crb_license_can' ) ? crb_license_can( $feature ) : false,
+				'message' => function_exists( 'crb_license_denied_message' ) ? crb_license_denied_message( $feature ) : '',
+			)
+		);
+
+	case 'import_schedule_min':
+		crb_probe_ok(
+			array(
+				'plan_min_hours' => function_exists( 'crb_license_import_schedule_min_hours' )
+					? (int) crb_license_import_schedule_min_hours()
+					: -1,
+				'slug_1h'        => function_exists( 'crb_import_schedule_slug_from_hours' )
+					? crb_import_schedule_slug_from_hours( 1 )
+					: '',
+				'slug_24h'       => function_exists( 'crb_import_schedule_slug_from_hours' )
+					? crb_import_schedule_slug_from_hours( 24 )
+					: '',
+			)
+		);
+
+	case 'free_credit_flag':
+		crb_probe_ok(
+			array(
+				'required' => function_exists( 'crb_license_requires_free_credit' ) && crb_license_requires_free_credit(),
+			)
+		);
+
+	case 'feed_count':
+		$count = 0;
+		if ( function_exists( 'crb_plugin' ) && crb_plugin()->feed_manager ) {
+			$count = count( crb_plugin()->feed_manager->get_feeds() );
+		}
+		crb_probe_ok( array( 'count' => $count ) );
+
 	default:
 		crb_probe_fail( 'unknown action: ' . $action );
 }

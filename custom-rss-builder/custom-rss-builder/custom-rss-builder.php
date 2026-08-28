@@ -6,7 +6,7 @@
  * Plugin URI:  https://example.com/custom-rss-builder
  * Description: RSS・投稿取り込みクライアント（ライセンスは正本サーバーへ REST 接続）。
 
- * Version:     0.9.0
+ * Version:     0.9.1.20260825a
 
  * Author:      Custom RSS Builder
 
@@ -32,12 +32,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 
 
-define( 'CRB_VERSION', '0.9.0' );
+define( 'CRB_VERSION', '0.9.1' );
 
 /** デプロイごとに更新（管理画面 JS/CSS のバージョン用） */
 
 define( 'CRB_PACKAGE_VARIANT', 'client' );
-define( 'CRB_BUILD_ID', '20260629a' );
+define( 'CRB_BUILD_ID', '20260825a' );
 define( 'CRB_LICENSE_DEFAULT_CLIENT_API_BASE', 'https://123789.jp/custom-rss-builder' );
 define( 'CRB_LICENSE_API_BASE', 'https://123789.jp/custom-rss-builder' );
 define( 'CRB_LICENSE_API_SECRET', '1FzSLnhpDzwXMo5LF1Z2XfV40o6PIja1' );
@@ -64,6 +64,7 @@ require_once CRB_PLUGIN_DIR . 'includes/functions-demo-samples.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-ai-manual.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-install-manual.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-feed-pack-manual.php';
+require_once CRB_PLUGIN_DIR . 'includes/functions-sales-lp.php';
 require_once CRB_PLUGIN_DIR . 'includes/functions-third-party-compat.php';
 
 if ( crb_is_client_app_enabled() ) {
@@ -98,6 +99,8 @@ if ( crb_is_client_app_enabled() ) {
 
 	require_once CRB_PLUGIN_DIR . 'includes/functions-feed-pack.php';
 
+	require_once CRB_PLUGIN_DIR . 'includes/functions-csv-import.php';
+
 	require_once CRB_PLUGIN_DIR . 'includes/functions-dom-scope.php';
 	require_once CRB_PLUGIN_DIR . 'includes/functions-dom-discover.php';
 
@@ -122,6 +125,8 @@ if ( crb_is_client_app_enabled() ) {
 	require_once CRB_PLUGIN_DIR . 'includes/class-post-importer.php';
 
 	require_once CRB_PLUGIN_DIR . 'includes/functions-import-schedule.php';
+
+	require_once CRB_PLUGIN_DIR . 'includes/functions-feed-presets.php';
 
 	require_once CRB_PLUGIN_DIR . 'includes/class-import-scheduler.php';
 
@@ -163,6 +168,9 @@ function crb_activate() {
 
 	if ( function_exists( 'crb_demo_samples_install' ) ) {
 		crb_demo_samples_install( false );
+	}
+	if ( function_exists( 'crb_sales_lp_install' ) ) {
+		crb_sales_lp_install( false );
 	}
 
 	if ( crb_is_client_app_enabled() ) {

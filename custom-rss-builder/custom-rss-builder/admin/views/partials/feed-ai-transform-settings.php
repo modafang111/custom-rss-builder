@@ -14,7 +14,8 @@ $ai_raw      = isset( $values['ai'] ) && is_array( $values['ai'] ) ? $values['ai
 $ai          = function_exists( 'crb_sanitize_ai_transform_settings' )
 	? crb_sanitize_ai_transform_settings( $ai_raw, false )
 	: $ai_raw;
-$ai_can      = function_exists( 'crb_ai_transform_is_configured_globally' ) && crb_ai_transform_is_configured_globally();
+$ai_license  = function_exists( 'crb_ai_transform_can_edit_feed_settings' ) && crb_ai_transform_can_edit_feed_settings();
+$ai_runtime  = function_exists( 'crb_ai_transform_is_configured_globally' ) && crb_ai_transform_is_configured_globally();
 $ai_slots    = array_map( 'intval', (array) ( $ai['slots'] ?? array() ) );
 $max_index   = function_exists( 'crb_license_get_max_slot_index' )
 	? (int) crb_license_get_max_slot_index()
@@ -31,21 +32,19 @@ $key_masked  = function_exists( 'crb_gemini_api_key_masked_display' ) ? crb_gemi
 		<?php esc_html_e( '抽出したスロットのテキストを Google Gemini で整形・要約・言い換えします。API キーはライセンス画面で設定したものを使います（BYOK）。', 'custom-rss-builder' ); ?>
 	</p>
 
-	<?php if ( ! $ai_can ) : ?>
+	<?php if ( ! $ai_license ) : ?>
+		<div class="notice notice-warning inline">
+			<p><?php esc_html_e( 'Pro ライセンスが必要です。', 'custom-rss-builder' ); ?></p>
+		</div>
+	<?php elseif ( ! $ai_runtime ) : ?>
 		<div class="notice notice-warning inline">
 			<p>
 				<?php
-				if ( function_exists( 'crb_license_can' ) && ! crb_license_can( 'ai_transform' ) ) {
-					esc_html_e( 'Pro ライセンスが必要です。', 'custom-rss-builder' );
-				} elseif ( function_exists( 'crb_gemini_api_key_configured' ) && ! crb_gemini_api_key_configured() ) {
-					printf(
-						/* translators: %s: license admin URL */
-						wp_kses_post( __( 'Gemini API キーが未設定です。<a href="%s">ライセンス画面</a>でキーを保存してください。', 'custom-rss-builder' ) ),
-						esc_url( admin_url( 'admin.php?page=custom-rss-builder-license' ) )
-					);
-				} else {
-					esc_html_e( 'AI 変換を利用できません。', 'custom-rss-builder' );
-				}
+				printf(
+					/* translators: %s: license admin URL */
+					wp_kses_post( __( 'Gemini API キーが未設定です。設定の保存はできますが、プレビュー・取り込みでの変換には <a href="%s">ライセンス画面</a> でキーが必要です。', 'custom-rss-builder' ) ),
+					esc_url( admin_url( 'admin.php?page=custom-rss-builder-license' ) )
+				);
 				?>
 			</p>
 		</div>
@@ -63,7 +62,7 @@ $key_masked  = function_exists( 'crb_gemini_api_key_masked_display' ) ? crb_gemi
 			<th scope="row"><?php esc_html_e( '変換', 'custom-rss-builder' ); ?></th>
 			<td>
 				<label>
-					<input type="checkbox" name="ai_transform_enabled" value="1" <?php checked( ! empty( $ai['enabled'] ) ); ?> <?php disabled( ! $ai_can ); ?>>
+					<input type="checkbox" name="ai_transform_enabled" value="1" <?php checked( ! empty( $ai['enabled'] ) ); ?> <?php disabled( ! $ai_license ); ?>>
 					<?php esc_html_e( 'AI テキスト変換を有効にする', 'custom-rss-builder' ); ?>
 				</label>
 			</td>
@@ -76,7 +75,7 @@ $key_masked  = function_exists( 'crb_gemini_api_key_masked_display' ) ? crb_gemi
 					id="crb-ai-transform-instruction"
 					class="large-text"
 					rows="4"
-					<?php disabled( ! $ai_can ); ?>
+					<?php disabled( ! $ai_license ); ?>
 					placeholder="<?php esc_attr_e( '例: 300字以内に要約し、です・ます調に書き直す。固有名詞は維持する。', 'custom-rss-builder' ); ?>"
 				><?php echo esc_textarea( (string) ( $ai['instruction'] ?? '' ) ); ?></textarea>
 				<p class="description"><?php esc_html_e( '選んだスロットのテキストすべてに同じ指示を適用します。', 'custom-rss-builder' ); ?></p>
@@ -100,7 +99,7 @@ $key_masked  = function_exists( 'crb_gemini_api_key_masked_display' ) ? crb_gemi
 								name="ai_transform_slots[]"
 								value="<?php echo esc_attr( (string) $slot_index ); ?>"
 								<?php checked( in_array( $slot_index, $ai_slots, true ) ); ?>
-								<?php disabled( ! $ai_can ); ?>
+								<?php disabled( ! $ai_license ); ?>
 							>
 							<code><?php echo esc_html( $token ); ?></code>
 						</label>
@@ -126,7 +125,7 @@ $key_masked  = function_exists( 'crb_gemini_api_key_masked_display' ) ? crb_gemi
 		<tr>
 			<th scope="row"><label for="crb-ai-transform-model"><?php esc_html_e( 'モデル', 'custom-rss-builder' ); ?></label></th>
 			<td>
-				<select name="ai_transform_model" id="crb-ai-transform-model" <?php disabled( ! $ai_can ); ?>>
+				<select name="ai_transform_model" id="crb-ai-transform-model" <?php disabled( ! $ai_license ); ?>>
 					<?php foreach ( $model_opts as $model_val => $model_label ) : ?>
 						<option value="<?php echo esc_attr( $model_val ); ?>" <?php selected( (string) ( $ai['model'] ?? '' ), $model_val ); ?>><?php echo esc_html( $model_label ); ?></option>
 					<?php endforeach; ?>

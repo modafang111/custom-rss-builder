@@ -12,15 +12,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * 範囲内の試し読みプレビュー行（{%n}・セレクタ・取り方・取れた値）。
  *
- * @param string                         $html           HTML.
- * @param string                         $scope_selector 範囲 CSS.
- * @param string                         $item_selector  1件ブロック CSS.
- * @param array<int, array<string,mixed>> $groups        discover groups.
- * @param string                         $base_url       Base URL.
- * @param bool                           $use_discover_dom 要素探索 AJAX 向け軽量 DOM。
- * @return array{context_note: string, item_count: int, rows: array<int, array<string,mixed>>}
+ * @param string                          $html              HTML.
+ * @param string                          $scope_selector    範囲 CSS.
+ * @param string                          $item_selector     1件ブロック CSS.
+ * @param array<int, array<string,mixed>> $groups            discover groups.
+ * @param string                          $base_url          Base URL.
+ * @param bool                            $use_discover_dom  要素探索 AJAX 向け軽量 DOM.
+ * @param array<string, string>|null           $probe_config           指定時はその CSS 設定で試し読み（④フォーム優先）。
+ * @param array<int, array<string, mixed>>|null $sequential_proposals  連番提案（④が空のとき試し読みに使用）。
+ * @return array{context_note: string, item_count: int, rows: array<int, array<string,mixed>>, preview_source?: string}
  */
-function crb_build_discover_scope_preview( $html, $scope_selector, $item_selector, array $groups, $base_url = '', $use_discover_dom = false ) {
+function crb_build_discover_scope_preview( $html, $scope_selector, $item_selector, array $groups, $base_url = '', $use_discover_dom = false, $probe_config = null, $sequential_proposals = null ) {
 	$empty = array(
 		'context_note' => '',
 		'item_count'   => 0,
@@ -92,8 +94,19 @@ function crb_build_discover_scope_preview( $html, $scope_selector, $item_selecto
 		$item_count = 1;
 	}
 
-	$suggested     = crb_discover_suggest_slot_rules( $groups );
-	$config        = crb_css_config_from_discover_suggested( $scope_selector, $item_selector, $suggested );
+	$preview_source = 'suggested';
+	if ( is_array( $probe_config ) && function_exists( 'crb_css_config_has_assigned_slots' ) && crb_css_config_has_assigned_slots( $probe_config ) ) {
+		$config                   = $probe_config;
+		$config['scope_selector'] = (string) $scope_selector;
+		$config['item_selector']  = (string) $item_selector;
+		$preview_source           = 'form';
+	} elseif ( is_array( $sequential_proposals ) && ! empty( $sequential_proposals ) && function_exists( 'crb_css_config_from_sequential_proposals' ) ) {
+		$config         = crb_css_config_from_sequential_proposals( $scope_selector, $item_selector, $sequential_proposals );
+		$preview_source = 'sequential';
+	} else {
+		$suggested = crb_discover_suggest_slot_rules( $groups );
+		$config    = crb_css_config_from_discover_suggested( $scope_selector, $item_selector, $suggested );
+	}
 	$extractor     = new Custom_RSS_Builder_Css_Extractor();
 	$preview_slots = crb_get_effective_slot_count();
 
@@ -185,11 +198,12 @@ function crb_build_discover_scope_preview( $html, $scope_selector, $item_selecto
 	}
 
 	return array(
-		'context_note'  => $note,
-		'item_count'    => $item_count,
-		'preview_shown' => $preview_shown,
-		'rows'          => $rows,
-		'item_previews' => $item_previews,
+		'context_note'    => $note,
+		'item_count'      => $item_count,
+		'preview_shown'   => $preview_shown,
+		'rows'            => $rows,
+		'item_previews'   => $item_previews,
+		'preview_source'  => $preview_source,
 	);
 }
 

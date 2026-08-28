@@ -140,7 +140,7 @@ class Custom_RSS_Builder_License_Client {
 				}
 				return array(
 					'success' => true,
-					'license' => $manager->format_public_license( $result ),
+					'license' => $manager->format_public_license( $result, $site ),
 				);
 
 			case 'deactivate':
@@ -176,7 +176,7 @@ class Custom_RSS_Builder_License_Client {
 				}
 				return array(
 					'success' => true,
-					'license' => $manager->format_public_license( $activated ),
+					'license' => $manager->format_public_license( $activated, $site ),
 				);
 		}
 

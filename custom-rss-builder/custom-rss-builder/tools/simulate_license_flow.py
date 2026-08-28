@@ -113,6 +113,22 @@ def main() -> int:
         fail("pro feed limit should be 10")
     else:
         ok("pro feed limit constant = 10")
+    if "CRB_LICENSE_PRO_SITE_LIMIT" not in lic:
+        fail("missing CRB_LICENSE_PRO_SITE_LIMIT")
+    elif ", 10 );" not in lic.split("CRB_LICENSE_PRO_SITE_LIMIT", 1)[1][:30]:
+        fail("pro site limit should be 10")
+    else:
+        ok("pro site limit constant = 10")
+    mgr = read("license-server/includes/class-license-manager.php")
+    if "crb_ls_site_limit_reached" not in mgr or "add_activated_site" not in mgr:
+        fail("license manager should support multi-site activation")
+    else:
+        ok("license manager multi-site activate/deactivate")
+    db = read("license-server/includes/class-database.php")
+    if "crb_license_sites" not in db:
+        fail("license sites table missing")
+    else:
+        ok("license sites table schema present")
     pro_gate = lic.split("'pro' === $plan", 1)[1].split("'free' !== $plan", 1)[0]
     if "CRB_LICENSE_PRO_FEED_LIMIT" not in pro_gate or "create_feed" not in pro_gate:
         fail("pro plan should gate create_feed by feed limit")

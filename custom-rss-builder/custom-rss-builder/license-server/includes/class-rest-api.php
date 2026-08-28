@@ -147,7 +147,7 @@ class CRB_License_Server_REST_API {
 		return rest_ensure_response(
 			array(
 				'success' => true,
-				'license' => $this->manager->format_public_license( $result ),
+				'license' => $this->manager->format_public_license( $result, $site ),
 			)
 		);
 	}
@@ -256,7 +256,7 @@ class CRB_License_Server_REST_API {
 		return rest_ensure_response(
 			array(
 				'success' => true,
-				'license' => $this->manager->format_public_license( $activated ),
+				'license' => $this->manager->format_public_license( $activated, $site ),
 			)
 		);
 	}

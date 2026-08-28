@@ -43,7 +43,7 @@ class CRB_License_Server_License_Manager {
 
 		$email = sanitize_email( (string) $email );
 		$plan  = sanitize_key( (string) $plan );
-		if ( ! in_array( $plan, array( 'free', 'standard', 'pro' ), true ) ) {
+		if ( ! in_array( $plan, array( 'free', 'standard', 'pro', 'special' ), true ) ) {
 			$plan = 'free';
 		}
 
@@ -89,6 +89,144 @@ class CRB_License_Server_License_Manager {
 	}
 
 	/**
+	 * @param int $license_id License row ID.
+	 * @return string[]
+	 */
+	public function get_activated_site_urls( $license_id ) {
+		global $wpdb;
+
+		$license_id = (int) $license_id;
+		if ( $license_id <= 0 || ! CRB_License_Server_Database::sites_table_exists() ) {
+			return array();
+		}
+
+		$table = CRB_License_Server_Database::sites_table_name();
+		$rows  = $wpdb->get_col(
+			$wpdb->prepare(
+				"SELECT site_url FROM {$table} WHERE license_id = %d ORDER BY activated_at ASC, id ASC",
+				$license_id
+			)
+		);
+
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		$urls = array();
+		foreach ( $rows as $url ) {
+			$url = trim( (string) $url );
+			if ( '' !== $url ) {
+				$urls[] = $url;
+			}
+		}
+
+		return array_values( array_unique( $urls ) );
+	}
+
+	/**
+	 * @param int    $license_id License row ID.
+	 * @param string $site_url   Site URL.
+	 */
+	private function add_activated_site( $license_id, $site_url ) {
+		global $wpdb;
+
+		$license_id = (int) $license_id;
+		$site_url   = crb_ls_normalize_site_url( $site_url );
+		if ( $license_id <= 0 || '' === $site_url || ! CRB_License_Server_Database::sites_table_exists() ) {
+			return;
+		}
+
+		$table = CRB_License_Server_Database::sites_table_name();
+		$exists = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM {$table} WHERE license_id = %d AND site_url = %s LIMIT 1",
+				$license_id,
+				$site_url
+			)
+		);
+		if ( $exists ) {
+			$wpdb->update(
+				$table,
+				array( 'activated_at' => current_time( 'mysql' ) ),
+				array( 'id' => (int) $exists ),
+				array( '%s' ),
+				array( '%d' )
+			);
+			return;
+		}
+
+		$wpdb->insert(
+			$table,
+			array(
+				'license_id'   => $license_id,
+				'site_url'     => $site_url,
+				'activated_at' => current_time( 'mysql' ),
+			),
+			array( '%d', '%s', '%s' )
+		);
+	}
+
+	/**
+	 * @param int    $license_id License row ID.
+	 * @param string $site_url   Site URL.
+	 */
+	private function remove_activated_site( $license_id, $site_url ) {
+		global $wpdb;
+
+		$license_id = (int) $license_id;
+		$site_url   = crb_ls_normalize_site_url( $site_url );
+		if ( $license_id <= 0 || '' === $site_url || ! CRB_License_Server_Database::sites_table_exists() ) {
+			return;
+		}
+
+		$table = CRB_License_Server_Database::sites_table_name();
+		$wpdb->delete(
+			$table,
+			array(
+				'license_id' => $license_id,
+				'site_url'   => $site_url,
+			),
+			array( '%d', '%s' )
+		);
+	}
+
+	/**
+	 * 一覧表示用に site_url 列を先頭サイトへ同期。
+	 *
+	 * @param int      $license_id License row ID.
+	 * @param string[] $sites      Activated sites.
+	 */
+	private function sync_primary_site_url_column( $license_id, array $sites ) {
+		global $wpdb;
+
+		$primary = ! empty( $sites ) ? (string) $sites[0] : '';
+		$wpdb->update(
+			CRB_License_Server_Database::table_name(),
+			array(
+				'site_url'   => $primary,
+				'updated_at' => current_time( 'mysql' ),
+			),
+			array( 'id' => (int) $license_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+	}
+
+	/**
+	 * @param array<string, mixed> $row License row.
+	 * @return string[]
+	 */
+	private function resolve_activated_sites( array $row ) {
+		$sites = $this->get_activated_site_urls( (int) ( $row['id'] ?? 0 ) );
+		if ( ! empty( $sites ) ) {
+			return $sites;
+		}
+
+		$legacy = trim( (string) ( $row['site_url'] ?? '' ) );
+		return '' !== $legacy ? array( $legacy ) : array();
+	}
+
+	/**
 	 * @param string $license_key Key.
 	 * @param string $site_url Site URL.
 	 * @return array<string, mixed>|WP_Error
@@ -108,8 +246,30 @@ class CRB_License_Server_License_Manager {
 			return new WP_Error( 'crb_ls_bad_site', __( 'サイト URL が不正です。', 'crb-license-server' ), array( 'status' => 400 ) );
 		}
 
-		$bound = trim( (string) ( $row['site_url'] ?? '' ) );
-		if ( '' !== $bound && $bound !== $site_url ) {
+		$plan   = crb_ls_license_plan( $row );
+		$limit  = function_exists( 'crb_ls_site_limit_for_plan' ) ? crb_ls_site_limit_for_plan( $plan ) : 1;
+		$sites  = $this->resolve_activated_sites( $row );
+		$license_id = (int) ( $row['id'] ?? 0 );
+
+		if ( in_array( $site_url, $sites, true ) ) {
+			$this->add_activated_site( $license_id, $site_url );
+			$fresh = $this->get_by_key( $license_key );
+			return $fresh ? $fresh : $row;
+		}
+
+		if ( count( $sites ) >= $limit ) {
+			if ( function_exists( 'crb_ls_is_pro_tier' ) ? crb_ls_is_pro_tier( $plan ) : 'pro' === $plan ) {
+				return new WP_Error(
+					'crb_ls_site_limit_reached',
+					sprintf(
+						/* translators: %d: max sites on pro plan */
+						__( 'Pro プランでは WordPress サイトは %d 台までです。', 'crb-license-server' ),
+						$limit
+					),
+					array( 'status' => 409 )
+				);
+			}
+
 			return new WP_Error(
 				'crb_ls_site_mismatch',
 				__( 'このライセンスは別のサイトで既に有効化されています。', 'crb-license-server' ),
@@ -117,17 +277,9 @@ class CRB_License_Server_License_Manager {
 			);
 		}
 
-		global $wpdb;
-		$wpdb->update(
-			CRB_License_Server_Database::table_name(),
-			array(
-				'site_url'   => $site_url,
-				'updated_at' => current_time( 'mysql' ),
-			),
-			array( 'id' => (int) $row['id'] ),
-			array( '%s', '%s' ),
-			array( '%d' )
-		);
+		$this->add_activated_site( $license_id, $site_url );
+		$sites[] = $site_url;
+		$this->sync_primary_site_url_column( $license_id, $sites );
 
 		$fresh = $this->get_by_key( $license_key );
 		return $fresh ? $fresh : $row;
@@ -144,23 +296,32 @@ class CRB_License_Server_License_Manager {
 			return new WP_Error( 'crb_ls_not_found', __( 'ライセンスキーが見つかりません。', 'crb-license-server' ), array( 'status' => 404 ) );
 		}
 
-		$site_url = crb_ls_normalize_site_url( $site_url );
-		$bound    = trim( (string) ( $row['site_url'] ?? '' ) );
-		if ( '' !== $bound && '' !== $site_url && $bound !== $site_url ) {
+		$site_url   = crb_ls_normalize_site_url( $site_url );
+		$sites      = $this->resolve_activated_sites( $row );
+		$license_id = (int) ( $row['id'] ?? 0 );
+
+		if ( '' !== $site_url && ! in_array( $site_url, $sites, true ) ) {
 			return new WP_Error( 'crb_ls_site_mismatch', __( 'サイト URL が一致しません。', 'crb-license-server' ), array( 'status' => 409 ) );
 		}
 
-		global $wpdb;
-		$wpdb->update(
-			CRB_License_Server_Database::table_name(),
-			array(
-				'site_url'   => '',
-				'updated_at' => current_time( 'mysql' ),
-			),
-			array( 'id' => (int) $row['id'] ),
-			array( '%s', '%s' ),
-			array( '%d' )
-		);
+		if ( '' !== $site_url ) {
+			$this->remove_activated_site( $license_id, $site_url );
+			$sites = array_values(
+				array_filter(
+					$sites,
+					static function ( $url ) use ( $site_url ) {
+						return $url !== $site_url;
+					}
+				)
+			);
+		} else {
+			foreach ( $sites as $url ) {
+				$this->remove_activated_site( $license_id, $url );
+			}
+			$sites = array();
+		}
+
+		$this->sync_primary_site_url_column( $license_id, $sites );
 
 		return true;
 	}
@@ -177,8 +338,9 @@ class CRB_License_Server_License_Manager {
 		}
 
 		$site_url = crb_ls_normalize_site_url( $site_url );
-		$bound    = trim( (string) ( $row['site_url'] ?? '' ) );
-		if ( '' !== $bound && $bound !== $site_url ) {
+		$sites    = $this->resolve_activated_sites( $row );
+
+		if ( ! empty( $sites ) && ! in_array( $site_url, $sites, true ) ) {
 			return new WP_Error( 'crb_ls_site_mismatch', __( '別のサイトで有効化されています。', 'crb-license-server' ), array( 'status' => 409 ) );
 		}
 
@@ -186,19 +348,31 @@ class CRB_License_Server_License_Manager {
 			return new WP_Error( 'crb_ls_inactive', __( 'ライセンスが無効です。', 'crb-license-server' ), array( 'status' => 403 ) );
 		}
 
-		return $this->format_public_license( $row );
+		return $this->format_public_license( $row, $site_url );
 	}
 
 	/**
-	 * @param array<string, mixed> $row Row.
+	 * @param array<string, mixed> $row License row.
+	 * @param string               $context_site Optional site for legacy site_url field.
 	 * @return array<string, mixed>
 	 */
-	public function format_public_license( array $row ) {
+	public function format_public_license( array $row, $context_site = '' ) {
+		$sites   = $this->resolve_activated_sites( $row );
+		$plan    = crb_ls_license_plan( $row );
+		$limit   = function_exists( 'crb_ls_site_limit_for_plan' ) ? crb_ls_site_limit_for_plan( $plan ) : 1;
+		$primary = trim( (string) $context_site );
+		if ( '' === $primary || ! in_array( $primary, $sites, true ) ) {
+			$primary = ! empty( $sites ) ? (string) $sites[0] : (string) ( $row['site_url'] ?? '' );
+		}
+
 		return array(
 			'license_key' => (string) ( $row['license_key'] ?? '' ),
-			'plan'        => crb_ls_license_plan( $row ),
+			'plan'        => $plan,
 			'status'      => sanitize_key( (string) ( $row['status'] ?? '' ) ),
-			'site_url'    => (string) ( $row['site_url'] ?? '' ),
+			'site_url'    => $primary,
+			'site_urls'   => $sites,
+			'site_count'  => count( $sites ),
+			'site_limit'  => $limit,
 			'usable'      => crb_ls_license_is_usable( $row ),
 		);
 	}
@@ -273,7 +447,18 @@ class CRB_License_Server_License_Manager {
 			ARRAY_A
 		);
 
-		return is_array( $rows ) ? $rows : array();
+		if ( ! is_array( $rows ) ) {
+			return array();
+		}
+
+		foreach ( $rows as $index => $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$rows[ $index ]['activated_sites'] = $this->resolve_activated_sites( $row );
+		}
+
+		return $rows;
 	}
 
 	/**

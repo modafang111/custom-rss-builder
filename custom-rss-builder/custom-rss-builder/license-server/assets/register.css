@@ -25,3 +25,16 @@
 	width: 100%;
 	max-width: 100%;
 }
+
+.crb-ls-register__btn--standard {
+	background: #1a7a5c !important;
+	border-color: #156549 !important;
+	color: #fff !important;
+}
+
+.crb-ls-register__btn--standard:hover,
+.crb-ls-register__btn--standard:focus {
+	background: #156549 !important;
+	border-color: #0f4d38 !important;
+	color: #fff !important;
+}

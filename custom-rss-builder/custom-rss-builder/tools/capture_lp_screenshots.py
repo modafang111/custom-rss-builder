@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""PluginTest から LP 用スクリーンショットを取得し assets/images/lp/ に保存する。"""
+"""PluginTest から LP 用スクリーンショットを取得し assets/images/lp/ に保存する。
+
+新規フィード（未入力）状態の画面を撮影する。モザイクは使わない。
+"""
 from __future__ import annotations
 
 import base64
 import ftplib
 import json
-import re
 import secrets
 import ssl
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -66,36 +67,35 @@ def ftp_delete_probe() -> None:
         ftp.quit()
 
 
+def probe_url(token: str, action: str, **params: str) -> str:
+    q = {"token": token, "action": action, **params}
+    return (
+        CLIENT_BASE
+        + "/wp-content/plugins/custom-rss-builder/"
+        + PROBE_REMOTE_NAME
+        + "?"
+        + urllib.parse.urlencode(q)
+    )
+
+
 def http_json(url: str) -> dict:
     req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
     with urllib.request.urlopen(req, context=CTX, timeout=60) as resp:
         return json.loads(resp.read().decode("utf-8", errors="replace"))
 
 
-def capture(token: str) -> int:
+def capture(token: str) -> None:
     probe_base = CLIENT_BASE + "/wp-content/plugins/custom-rss-builder/" + PROBE_REMOTE_NAME
-    feeds_url = probe_base + "?" + urllib.parse.urlencode(
-        {"token": token, "action": "list_feeds"}
-    )
-    payload = http_json(feeds_url)
-    if not payload.get("ok"):
-        raise RuntimeError("list_feeds failed: " + str(payload))
-    feeds = payload.get("feeds") or []
-    if not feeds:
-        raise RuntimeError("no feeds on PluginTest")
-    feed_id = int(feeds[0]["id"])
-    print("Using feed:", feed_id, feeds[0].get("name", ""))
 
-    login_url = probe_base + "?" + urllib.parse.urlencode(
-        {"token": token, "action": "login_edit", "feed_id": feed_id}
-    )
-    edit_url = (
-        CLIENT_BASE
-        + "/wp-admin/admin.php?page=custom-rss-builder&action=edit&feed_id="
-        + str(feed_id)
-    )
-    rss_url = CLIENT_BASE + "/feed/custom-rss/" + str(feed_id) + "/"
-    front_url = CLIENT_BASE + "/"
+    front_payload = http_json(probe_url(token, "prepare_lp_front"))
+    if not front_payload.get("ok"):
+        raise RuntimeError("prepare_lp_front failed: " + str(front_payload))
+    front_post_url = str(front_payload.get("url") or CLIENT_BASE + "/")
+    print("Sample post:", front_post_url)
+
+    login_url = probe_url(token, "login_edit", feed_id="new")
+    edit_url = CLIENT_BASE + "/wp-admin/admin.php?page=custom-rss-builder&action=edit"
+    rss_demo_url = probe_url(token, "lp_rss_demo")
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -114,10 +114,9 @@ def capture(token: str) -> int:
             page.goto(edit_url, wait_until="networkidle", timeout=120000)
         page.wait_for_timeout(2000)
 
-        # Hero: scroll to slot / scope workflow area.
         for selector in (
-            "#crb-step-3",
             "#crb-step-4",
+            "#crb-step-3",
             ".crb-workflow-step--slots",
             ".crb-panel--css",
         ):
@@ -128,33 +127,56 @@ def capture(token: str) -> int:
                 break
         page.screenshot(path=str(OUT_DIR / "lp-hero-feed-edit.png"), full_page=False)
 
-        preview_btn = page.locator(
-            "button[name='crb_action'][value='preview'], "
-            "input[name='crb_action'][value='preview']"
-        ).first
-        if preview_btn.count() > 0:
-            preview_btn.click()
-            page.wait_for_load_state("networkidle", timeout=180000)
-            page.wait_for_timeout(2500)
-            panel = page.locator("#crb-preview-panel, #crb-preview-extract-body").first
-            if panel.count() > 0:
-                panel.scroll_into_view_if_needed()
-                page.wait_for_timeout(800)
-        page.screenshot(path=str(OUT_DIR / "lp-shot-preview.png"), full_page=True)
+        step1 = page.locator("#crb-step-1").first
+        if step1.count() > 0:
+            step1.scroll_into_view_if_needed()
+            page.wait_for_timeout(500)
+
+        from PIL import Image
+
+        shots: list[Image.Image] = []
+        if step1.count() > 0:
+            step1_png = OUT_DIR / "_tmp-step1.png"
+            step1.screenshot(path=str(step1_png))
+            shots.append(Image.open(step1_png).convert("RGB"))
+
+        panel = page.locator("#crb-preview-panel").first
+        if panel.count() > 0:
+            panel_png = OUT_DIR / "_tmp-preview.png"
+            panel.screenshot(path=str(panel_png))
+            shots.append(Image.open(panel_png).convert("RGB"))
+
+        if shots:
+            width = max(im.size[0] for im in shots)
+            total_h = sum(im.size[1] for im in shots)
+            combined = Image.new("RGB", (width, total_h), (255, 255, 255))
+            y = 0
+            for im in shots:
+                combined.paste(im, (0, y))
+                y += im.size[1]
+            combined.save(OUT_DIR / "lp-shot-preview.png", format="PNG", optimize=True)
+            for tmp in (OUT_DIR / "_tmp-step1.png", OUT_DIR / "_tmp-preview.png"):
+                if tmp.is_file():
+                    tmp.unlink()
+            print(f"  lp-shot-preview.png {width}x{total_h}")
+        else:
+            page.screenshot(path=str(OUT_DIR / "lp-shot-preview.png"), full_page=False)
 
         rss_page = context.new_page()
-        rss_page.goto(rss_url, wait_until="domcontentloaded", timeout=120000)
+        rss_page.goto(rss_demo_url, wait_until="domcontentloaded", timeout=120000)
         rss_page.wait_for_timeout(1500)
         rss_page.screenshot(path=str(OUT_DIR / "lp-shot-rss.png"), full_page=False)
 
         front_page = context.new_page()
-        front_page.goto(front_url, wait_until="networkidle", timeout=120000)
+        front_page.goto(front_post_url, wait_until="networkidle", timeout=120000)
         front_page.wait_for_timeout(1500)
-        front_page.screenshot(path=str(OUT_DIR / "lp-shot-imported.png"), full_page=False)
+        article = front_page.locator("article.post, .entry-content, main article").first
+        if article.count() > 0:
+            article.screenshot(path=str(OUT_DIR / "lp-shot-imported.png"))
+        else:
+            front_page.screenshot(path=str(OUT_DIR / "lp-shot-imported.png"), full_page=False)
 
         browser.close()
-
-    return feed_id
 
 
 def main() -> None:
@@ -162,8 +184,7 @@ def main() -> None:
     print("Uploading probe...")
     ftp_upload_probe(token)
     try:
-        feed_id = capture(token)
-        print("Captured feed_id", feed_id)
+        capture(token)
         print("Saved images to", OUT_DIR)
     finally:
         print("Removing probe...")

@@ -1,0 +1,61 @@
+﻿commit c600e5bd319b81b8993ad9651b897c3cd00ebf7a
+Author: Cursor Agent <cursoragent@cursor.com>
+Date:   Tue May 26 13:00:29 2026 +0000
+
+    Keep Feed43 slot candidates in discovery results
+    
+    Co-authored-by: modafang111 <modafang111@users.noreply.github.com>
+
+diff --git a/custom-rss-builder/custom-rss-builder/includes/class-element-discovery.php b/custom-rss-builder/custom-rss-builder/includes/class-element-discovery.php
+index ab9e43f..d10c272 100644
+--- a/custom-rss-builder/custom-rss-builder/includes/class-element-discovery.php
++++ b/custom-rss-builder/custom-rss-builder/includes/class-element-discovery.php
+@@ -80,7 +80,7 @@ class Custom_RSS_Builder_Element_Discovery {
+ 			}
+ 		);
+ 
+-		$groups = array_slice( $groups, 0, self::MAX_GROUPS );
++		$groups = $this->limit_groups_for_output( $groups );
+ 		$groups = $this->mark_primary_link_group( $groups );
+ 
+ 		return array(
+@@ -91,6 +91,40 @@ class Custom_RSS_Builder_Element_Discovery {
+ 		);
+ 	}
+ 
++	/**
++	 * Feed43 縺ｮ繧ｹ繝ｭ繝・ヨ謠先｡医↓菴ｿ縺・Μ繝ｳ繧ｯ繝ｻ逕ｻ蜒上・繝・く繧ｹ繝亥呵｣懊ｒ繝悶Ο繝・け蛟呵｣懊〒謚ｼ縺怜・縺輔↑縺・・+	 *
++	 * @param array<int, array<string, mixed>> $groups Discovery groups.
++	 * @return array<int, array<string, mixed>>
++	 */
++	private function limit_groups_for_output( array $groups ) {
++		if ( count( $groups ) <= self::MAX_GROUPS ) {
++			return $groups;
++		}
++
++		$block_groups = array();
++		$slot_groups  = array();
++		foreach ( $groups as $group ) {
++			if ( 'block' === (string) ( $group['kind'] ?? '' ) ) {
++				$block_groups[] = $group;
++				continue;
++			}
++			$slot_groups[] = $group;
++		}
++
++		$block_limit = min( 15, count( $block_groups ) );
++		$slot_limit  = self::MAX_GROUPS - $block_limit;
++		if ( count( $slot_groups ) < $slot_limit ) {
++			$block_limit = min( count( $block_groups ), self::MAX_GROUPS - count( $slot_groups ) );
++			$slot_limit  = self::MAX_GROUPS - $block_limit;
++		}
++
++		return array_merge(
++			array_slice( $block_groups, 0, $block_limit ),
++			array_slice( $slot_groups, 0, $slot_limit )
++		);
++	}
++
+ 	/**
+ 	 * @param string $html HTML.
+ 	 * @return DOMDocument|WP_Error

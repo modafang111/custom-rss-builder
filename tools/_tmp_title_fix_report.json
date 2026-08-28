@@ -1,0 +1,396 @@
+{
+  "dry": {
+    "ok": true,
+    "dry_run": true,
+    "feed_stats": [
+      {
+        "feed_id": 1,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 2,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 4,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 5,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 6,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 7,
+        "extracted": 2,
+        "mapped": 2,
+        "error": ""
+      },
+      {
+        "feed_id": 8,
+        "extracted": 1,
+        "mapped": 1,
+        "error": ""
+      }
+    ],
+    "link_map_size": 100,
+    "scanned_broken": 250,
+    "updated_count": 250,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "updated_sample": [
+      {
+        "id": 7046,
+        "old": "ラッキードスケベ体質先生|[{ラッキードスケベ体質先生1}]",
+        "new": "ラッキードスケベ体質先生|[なむる。]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01444274.html"
+      },
+      {
+        "id": 7044,
+        "old": "耳ほじ忍法帖～香絡くノ一『蕺草』不埒な耳穴頂戴します～|[{耳ほじ忍法帖～香絡くノ一『蕺草』不埒な耳穴頂戴します～1}]",
+        "new": "耳ほじ忍法帖～香絡くノ一『蕺草』不埒な耳穴頂戴します～|[四方山みかん]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01262663.html"
+      },
+      {
+        "id": 7042,
+        "old": "【スマホ版】NTR騎士|[{【スマホ版】NTR騎士1}]",
+        "new": "【スマホ版】NTR騎士|[戦争屋さん]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/appx/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01227129.html"
+      },
+      {
+        "id": 7038,
+        "old": "藍空に、吐息。～空っぽな一人ぼっち同士、誘拐から始まる人生台無し共依存逃避行～|[{藍空に、吐息。～空っぽな一人ぼっち同士、誘拐から始まる人生台無し共依存逃避行～1}]",
+        "new": "藍空に、吐息。～空っぽな一人ぼっち同士、誘拐から始まる人生台無し共依存逃避行～|[ろりっくorろりっ娘!]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01658524.html"
+      },
+      {
+        "id": 7036,
+        "old": "宇宙船とオペレーション|[{宇宙船とオペレーション1}]",
+        "new": "宇宙船とオペレーション|[道糞屋]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01531293.html"
+      },
+      {
+        "id": 7034,
+        "old": "人妻封魔師麗蘭 ～奴○妻に堕ちる媚肉封魔師～|[{人妻封魔師麗蘭 ～奴○妻に堕ちる媚肉封魔師～1}]",
+        "new": "人妻封魔師麗蘭 ～奴○妻に堕ちる媚肉封魔師～|[ダーク・テンプテーション]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01675771.html"
+      },
+      {
+        "id": 7032,
+        "old": "Emerald Blue -Crystal Rev-|[{Emerald Blue -Crystal Rev-1}]",
+        "new": "Emerald Blue -Crystal Rev-|[Xtrasoft Development]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01650780.html"
+      },
+      {
+        "id": 7030,
+        "old": "Gambling Sisters|[{Gambling Sisters1}]",
+        "new": "Gambling Sisters|[めろんぱんつ]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01439426.html"
+      },
+      {
+        "id": 7028,
+        "old": "COMIC快楽天 2026年09月号|[{COMIC快楽天 2026年09月号1}]",
+        "new": "COMIC快楽天 2026年09月号|[ワニマガジン社]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02899597.html"
+      },
+      {
+        "id": 7026,
+        "old": "100万回大性交|[{100万回大性交1}]",
+        "new": "100万回大性交|[ヒット出版社]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02149524.html"
+      },
+      {
+        "id": 7024,
+        "old": "美女と野獣 〜ギャルとキモオタ〜|[{美女と野獣 〜ギャルとキモオタ〜1}]",
+        "new": "美女と野獣 〜ギャルとキモオタ〜|[ジーオーティー]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ319607.html"
+      },
+      {
+        "id": 7022,
+        "old": "猫にまたたび|[{猫にまたたび1}]",
+        "new": "猫にまたたび|[ワニマガジン社]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02899603.html"
+      },
+      {
+        "id": 7020,
+        "old": "スキならスキだしスキなだけ【デジタル特装版】|[{スキならスキだしスキなだけ【デジタル特装版】1}]",
+        "new": "スキならスキだしスキなだけ【デジタル特装版】|[ジーオーティー]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02269664.html"
+      },
+      {
+        "id": 7018,
+        "old": "Emerald Blue -Crystal Rev-|[{Emerald Blue -Crystal Rev-1}]",
+        "new": "Emerald Blue -Crystal Rev-|[Xtrasoft Development]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01650780.html"
+      },
+      {
+        "id": 6944,
+        "old": "弟と過ごす夏休み【耳かきボイス】|[{弟と過ごす夏休み【耳かきボイス】1}]",
+        "new": "弟と過ごす夏休み【耳かきボイス】|[麦茶一家]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ338777.html"
+      },
+      {
+        "id": 6500,
+        "old": "トリフォリウムRADIO11〜六時だね、夏の夜一緒に涼もうよ〜|[{トリフォリウムRADIO11〜六時だね、夏の夜一緒に涼もうよ〜1}]",
+        "new": "トリフォリウムRADIO11〜六時だね、夏の夜一緒に涼もうよ〜|[トリフォリウム]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01687812.html"
+      },
+      {
+        "id": 6307,
+        "old": "Cradle Epic―姫騎士の闘技場(中國語)|[{Cradle Epic―姫騎士の闘技場(中國語)1}]",
+        "new": "Cradle Epic―姫騎士の闘技場(中國語)|[Naglfar]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ267818.html"
+      },
+      {
+        "id": 6305,
+        "old": "淫穴調伏トエハ ～退魔巫女3Dおさわりシミュレーション～|[{淫穴調伏トエハ ～退魔巫女3Dおさわりシミュレーション～1}]",
+        "new": "淫穴調伏トエハ ～退魔巫女3Dおさわりシミュレーション～|[I'm moralist]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01376315.html"
+      },
+      {
+        "id": 6299,
+        "old": "牛娘メイドの館からの脱出|[{牛娘メイドの館からの脱出1}]",
+        "new": "牛娘メイドの館からの脱出|[ねこうきびギルド]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01675314.html"
+      },
+      {
+        "id": 6066,
+        "old": "【Android版】助けの来ない場所で|[{【Android版】助けの来ない場所で1}]",
+        "new": "【Android版】助けの来ない場所で|[FictionMemo]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/appx/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01679917.html"
+      }
+    ],
+    "skipped_sample": [],
+    "failed": []
+  },
+  "live": {
+    "ok": true,
+    "dry_run": false,
+    "feed_stats": [
+      {
+        "feed_id": 1,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 2,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 4,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 5,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 6,
+        "extracted": 10,
+        "mapped": 10,
+        "error": ""
+      },
+      {
+        "feed_id": 7,
+        "extracted": 2,
+        "mapped": 2,
+        "error": ""
+      },
+      {
+        "feed_id": 8,
+        "extracted": 1,
+        "mapped": 1,
+        "error": ""
+      }
+    ],
+    "link_map_size": 100,
+    "scanned_broken": 250,
+    "updated_count": 250,
+    "skipped_count": 0,
+    "failed_count": 0,
+    "updated_sample": [
+      {
+        "id": 7046,
+        "old": "ラッキードスケベ体質先生|[{ラッキードスケベ体質先生1}]",
+        "new": "ラッキードスケベ体質先生|[なむる。]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01444274.html"
+      },
+      {
+        "id": 7044,
+        "old": "耳ほじ忍法帖～香絡くノ一『蕺草』不埒な耳穴頂戴します～|[{耳ほじ忍法帖～香絡くノ一『蕺草』不埒な耳穴頂戴します～1}]",
+        "new": "耳ほじ忍法帖～香絡くノ一『蕺草』不埒な耳穴頂戴します～|[四方山みかん]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01262663.html"
+      },
+      {
+        "id": 7042,
+        "old": "【スマホ版】NTR騎士|[{【スマホ版】NTR騎士1}]",
+        "new": "【スマホ版】NTR騎士|[戦争屋さん]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/appx/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01227129.html"
+      },
+      {
+        "id": 7038,
+        "old": "藍空に、吐息。～空っぽな一人ぼっち同士、誘拐から始まる人生台無し共依存逃避行～|[{藍空に、吐息。～空っぽな一人ぼっち同士、誘拐から始まる人生台無し共依存逃避行～1}]",
+        "new": "藍空に、吐息。～空っぽな一人ぼっち同士、誘拐から始まる人生台無し共依存逃避行～|[ろりっくorろりっ娘!]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01658524.html"
+      },
+      {
+        "id": 7036,
+        "old": "宇宙船とオペレーション|[{宇宙船とオペレーション1}]",
+        "new": "宇宙船とオペレーション|[道糞屋]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01531293.html"
+      },
+      {
+        "id": 7034,
+        "old": "人妻封魔師麗蘭 ～奴○妻に堕ちる媚肉封魔師～|[{人妻封魔師麗蘭 ～奴○妻に堕ちる媚肉封魔師～1}]",
+        "new": "人妻封魔師麗蘭 ～奴○妻に堕ちる媚肉封魔師～|[ダーク・テンプテーション]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01675771.html"
+      },
+      {
+        "id": 7032,
+        "old": "Emerald Blue -Crystal Rev-|[{Emerald Blue -Crystal Rev-1}]",
+        "new": "Emerald Blue -Crystal Rev-|[Xtrasoft Development]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01650780.html"
+      },
+      {
+        "id": 7030,
+        "old": "Gambling Sisters|[{Gambling Sisters1}]",
+        "new": "Gambling Sisters|[めろんぱんつ]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01439426.html"
+      },
+      {
+        "id": 7028,
+        "old": "COMIC快楽天 2026年09月号|[{COMIC快楽天 2026年09月号1}]",
+        "new": "COMIC快楽天 2026年09月号|[ワニマガジン社]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02899597.html"
+      },
+      {
+        "id": 7026,
+        "old": "100万回大性交|[{100万回大性交1}]",
+        "new": "100万回大性交|[ヒット出版社]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02149524.html"
+      },
+      {
+        "id": 7024,
+        "old": "美女と野獣 〜ギャルとキモオタ〜|[{美女と野獣 〜ギャルとキモオタ〜1}]",
+        "new": "美女と野獣 〜ギャルとキモオタ〜|[ジーオーティー]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ319607.html"
+      },
+      {
+        "id": 7022,
+        "old": "猫にまたたび|[{猫にまたたび1}]",
+        "new": "猫にまたたび|[ワニマガジン社]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02899603.html"
+      },
+      {
+        "id": 7020,
+        "old": "スキならスキだしスキなだけ【デジタル特装版】|[{スキならスキだしスキなだけ【デジタル特装版】1}]",
+        "new": "スキならスキだしスキなだけ【デジタル特装版】|[ジーオーティー]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/books/dlaf/=/t/s/link/work/aid/dslite_123/id/BJ02269664.html"
+      },
+      {
+        "id": 7018,
+        "old": "Emerald Blue -Crystal Rev-|[{Emerald Blue -Crystal Rev-1}]",
+        "new": "Emerald Blue -Crystal Rev-|[Xtrasoft Development]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01650780.html"
+      },
+      {
+        "id": 6944,
+        "old": "弟と過ごす夏休み【耳かきボイス】|[{弟と過ごす夏休み【耳かきボイス】1}]",
+        "new": "弟と過ごす夏休み【耳かきボイス】|[麦茶一家]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ338777.html"
+      },
+      {
+        "id": 6500,
+        "old": "トリフォリウムRADIO11〜六時だね、夏の夜一緒に涼もうよ〜|[{トリフォリウムRADIO11〜六時だね、夏の夜一緒に涼もうよ〜1}]",
+        "new": "トリフォリウムRADIO11〜六時だね、夏の夜一緒に涼もうよ〜|[トリフォリウム]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/home/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01687812.html"
+      },
+      {
+        "id": 6307,
+        "old": "Cradle Epic―姫騎士の闘技場(中國語)|[{Cradle Epic―姫騎士の闘技場(中國語)1}]",
+        "new": "Cradle Epic―姫騎士の闘技場(中國語)|[Naglfar]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ267818.html"
+      },
+      {
+        "id": 6305,
+        "old": "淫穴調伏トエハ ～退魔巫女3Dおさわりシミュレーション～|[{淫穴調伏トエハ ～退魔巫女3Dおさわりシミュレーション～1}]",
+        "new": "淫穴調伏トエハ ～退魔巫女3Dおさわりシミュレーション～|[I'm moralist]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01376315.html"
+      },
+      {
+        "id": 6299,
+        "old": "牛娘メイドの館からの脱出|[{牛娘メイドの館からの脱出1}]",
+        "new": "牛娘メイドの館からの脱出|[ねこうきびギルド]",
+        "method": "tag_fallback",
+        "source": "https://dlaf.jp/maniax/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01675314.html"
+      },
+      {
+        "id": 6066,
+        "old": "【Android版】助けの来ない場所で|[{【Android版】助けの来ない場所で1}]",
+        "new": "【Android版】助けの来ない場所で|[FictionMemo]",
+        "method": "reextract",
+        "source": "https://dlaf.jp/appx/dlaf/=/t/s/link/work/aid/dslite_123/id/RJ01679917.html"
+      }
+    ],
+    "skipped_sample": [],
+    "failed": []
+  }
+}

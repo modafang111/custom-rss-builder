@@ -54,10 +54,13 @@ def main() -> int:
     else:
         ok("ajax uses Element_Discovery(true)")
 
-    if "crb_build_discover_scope_preview( $html, $scope, $item_sel, $result['groups'] ?? array(), $url, true )" not in admin:
+    if "crb_build_discover_scope_preview(" not in admin or "true," not in admin:
+        # Called with use_discover_dom=true (may pass form probe config as 7th arg).
         fail_msg("scope preview must pass use_discover_dom=true in ajax")
+    elif "crb_css_config_from_discover_request" not in admin:
+        fail_msg("ajax should build form probe config for scope preview")
     else:
-        ok("ajax scope preview uses discover dom")
+        ok("ajax scope preview uses discover dom + form probe")
 
     if "crb_build_extract_candidates( $html, $scope, $item_sel, $url, true )" not in admin:
         fail_msg("extract candidates must pass use_discover_dom=true in ajax")

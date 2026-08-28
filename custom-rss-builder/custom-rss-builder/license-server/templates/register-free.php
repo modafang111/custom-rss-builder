@@ -9,10 +9,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$pro_url = function_exists( 'crb_ls_pro_payment_url' ) ? crb_ls_pro_payment_url() : '';
+$standard_url = function_exists( 'crb_ls_standard_payment_url' ) ? crb_ls_standard_payment_url() : '';
+$pro_url      = function_exists( 'crb_ls_pro_payment_url' ) ? crb_ls_pro_payment_url() : '';
 ?>
 <div class="crb-ls-register">
-	<h2><?php esc_html_e( 'Custom RSS Builder 無料登録', 'crb-license-server' ); ?></h2>
+	<h2><?php esc_html_e( '無料プラン', 'crb-license-server' ); ?></h2>
 	<p><?php esc_html_e( 'メールアドレスを入力すると、無料プランのライセンスキーをお送りします。', 'crb-license-server' ); ?></p>
 
 	<?php if ( '' !== $message ) : ?>
@@ -33,6 +34,29 @@ $pro_url = function_exists( 'crb_ls_pro_payment_url' ) ? crb_ls_pro_payment_url(
 			</button>
 		</p>
 	</form>
+
+	<?php if ( '' !== $standard_url ) : ?>
+		<hr />
+		<h3>
+			<?php
+			if ( function_exists( 'crb_standard_monthly_price_label' ) ) {
+				printf(
+					/* translators: %s: monthly price label */
+					esc_html__( 'スタンダードプラン（%s）', 'crb-license-server' ),
+					esc_html( crb_standard_monthly_price_label() )
+				);
+			} else {
+				esc_html_e( 'スタンダードプラン（月額 1,100 円・税込）', 'crb-license-server' );
+			}
+			?>
+		</h3>
+		<p><?php esc_html_e( 'お申し込み後、スタンダードライセンスキーをメールでお送りします。', 'crb-license-server' ); ?></p>
+		<p>
+			<a class="button crb-ls-register__btn--standard" href="<?php echo esc_url( $standard_url ); ?>" target="_blank" rel="noopener noreferrer">
+				<?php esc_html_e( 'スタンダードを申し込む', 'crb-license-server' ); ?>
+			</a>
+		</p>
+	<?php endif; ?>
 
 	<?php if ( '' !== $pro_url ) : ?>
 		<hr />

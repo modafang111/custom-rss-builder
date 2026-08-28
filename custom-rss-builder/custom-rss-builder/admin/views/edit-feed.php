@@ -271,7 +271,7 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 					</div>
 					<ul class="crb-discover-actions__help description">
 						<li><strong><?php esc_html_e( '範囲の HTML を確認', 'custom-rss-builder' ); ?></strong> — <?php esc_html_e( '「一覧の場所」が空欄のときは押せません（省略可の欄のため）。入れたときだけ HTML を目視確認します。', 'custom-rss-builder' ); ?></li>
-						<li><strong><?php esc_html_e( '取れる値を一覧表示', 'custom-rss-builder' ); ?></strong> — <?php esc_html_e( 'まずはこちら。タイトル・リンクなどの候補が表で出ます。スロット列で「タイトル用」「リンク用」などを選ぶと④に入ります。', 'custom-rss-builder' ); ?></li>
+						<li><strong><?php esc_html_e( '取れる値を一覧表示', 'custom-rss-builder' ); ?></strong> — <?php esc_html_e( 'まずはこちら。タイトル・リンクなどの候補が表で出ます。スロット列では {%3%} 以降を選ぶと④の追加欄に入ります（{%1%}・{%2%} は④で直接設定）。', 'custom-rss-builder' ); ?></li>
 					</ul>
 				</div>
 				<div id="crb-discover-results" class="crb-discover-results" hidden>
@@ -318,17 +318,33 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 						);
 						?>
 					</p>
-				<?php elseif ( ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' ) ) : ?>
+				<?php elseif ( ! empty( $crb_license_state['usable'] ) && function_exists( 'crb_license_is_pro_tier' ) && crb_license_is_pro_tier( $crb_license_state['plan'] ?? '' ) ) : ?>
 					<p class="description">
 						<?php
-						$crb_pro_slot_max = function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20;
-						printf(
-							/* translators: 1: first slot token, 2: max slot token, 3: feed limit */
-							esc_html__( '現在のプラン（Pro）: スロット %1$s〜%2$s、フィード %3$d 件まで。', 'custom-rss-builder' ),
-							'{%1%}',
-							'{%' . $crb_pro_slot_max . '%}',
-							defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10
-						);
+						$crb_pro_slot_max   = function_exists( 'crb_license_pro_slot_count' ) ? (int) crb_license_pro_slot_count() : 20;
+						$crb_pro_plan_label = function_exists( 'crb_license_plan_label' ) ? crb_license_plan_label( $crb_license_state['plan'] ?? '' ) : 'Pro';
+						$crb_pro_plan_slug  = (string) ( $crb_license_state['plan'] ?? '' );
+						if ( function_exists( 'crb_license_feed_limit_is_unlimited' ) && crb_license_feed_limit_is_unlimited( $crb_pro_plan_slug ) ) {
+							printf(
+								/* translators: 1: first slot token, 2: max slot token, 3: plan label */
+								esc_html__( '現在のプラン（%3$s）: スロット %1$s〜%2$s、フィード数無制限。', 'custom-rss-builder' ),
+								'{%1%}',
+								'{%' . $crb_pro_slot_max . '%}',
+								esc_html( $crb_pro_plan_label )
+							);
+						} else {
+							$crb_pro_feed_limit = function_exists( 'crb_license_feed_limit_for_plan' )
+								? (int) crb_license_feed_limit_for_plan( $crb_pro_plan_slug )
+								: ( defined( 'CRB_LICENSE_PRO_FEED_LIMIT' ) ? (int) CRB_LICENSE_PRO_FEED_LIMIT : 10 );
+							printf(
+								/* translators: 1: first slot token, 2: max slot token, 3: feed limit, 4: plan label */
+								esc_html__( '現在のプラン（%4$s）: スロット %1$s〜%2$s、フィード %3$d 件まで。', 'custom-rss-builder' ),
+								'{%1%}',
+								'{%' . $crb_pro_slot_max . '%}',
+								$crb_pro_feed_limit,
+								esc_html( $crb_pro_plan_label )
+							);
+						}
 						?>
 					</p>
 				<?php endif; ?>
@@ -397,6 +413,8 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 							$cfg_key  = $map['config_key'];
 							$mode_val = crb_sanitize_slot_extract_mode( (string) ( $values['css'][ $mode_key ] ?? $map['default_mode'] ) );
 							$sel_val  = (string) ( $values['css'][ $cfg_key ] ?? '' );
+							$attr_key = 'slot_attr_' . ( (int) $slot_index + 1 );
+							$attr_val = (string) ( $values['css'][ $attr_key ] ?? '' );
 							?>
 						<tr>
 							<td><code><?php echo esc_html( crb_slot_token( $slot_index ) ); ?></code></td>
@@ -416,6 +434,15 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 										<option value="<?php echo esc_attr( $opt_val ); ?>" <?php selected( $mode_val, $opt_val ); ?>><?php echo esc_html( $opt_label ); ?></option>
 									<?php endforeach; ?>
 								</select>
+								<input
+									name="css_<?php echo esc_attr( $attr_key ); ?>"
+									type="text"
+									class="small-text code crb-slot-attr"
+									data-slot-index="<?php echo esc_attr( (string) $slot_index ); ?>"
+									value="<?php echo esc_attr( $attr_val ); ?>"
+									placeholder="pid"
+									<?php echo ( 'attr' === $mode_val ) ? '' : 'hidden'; ?>
+								>
 							</td>
 						</tr>
 						<?php endforeach; ?>
@@ -516,7 +543,12 @@ $form_action = admin_url( 'admin.php?page=custom-rss-builder&action=edit' . ( $v
 		</p>
 	<?php endif; ?>
 	<?php
-	$crb_is_pro_usable = ! empty( $crb_license_state['usable'] ) && 'pro' === ( $crb_license_state['plan'] ?? '' );
+	$crb_is_pro_usable = ! empty( $crb_license_state['usable'] )
+		&& (
+			function_exists( 'crb_license_is_pro_tier' )
+				? crb_license_is_pro_tier( $crb_license_state['plan'] ?? '' )
+				: 'pro' === ( $crb_license_state['plan'] ?? '' )
+		);
 	?>
 	<?php if ( $crb_is_pro_usable ) : ?>
 		<p class="crb-feed-pack-pro-setup description">

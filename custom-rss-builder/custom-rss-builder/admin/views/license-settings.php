@@ -41,7 +41,7 @@ $standard_subscribe_url   = function_exists( 'crb_license_standard_payment_url' 
 $show_pro_upgrade_panel   = ( 'free' === $state['plan'] ) && $state['usable'];
 $show_client_pro_cta      = $is_client_screen && $show_pro_upgrade_panel && '' !== $pro_subscribe_url;
 $show_client_standard_cta = $is_client_screen && $show_pro_upgrade_panel && '' !== $standard_subscribe_url;
-$show_pro_setup_panel     = $is_client_screen && $state['usable'] && in_array( $state['plan'], array( 'pro', 'standard' ), true );
+$show_pro_setup_panel     = $is_client_screen && $state['usable'] && in_array( $state['plan'], array( 'pro', 'standard', 'special' ), true );
 $client_remote_base     = ( $is_client_screen && function_exists( 'crb_license_client_remote_base_url' ) )
 	? crb_license_client_remote_base_url()
 	: '';
@@ -63,8 +63,14 @@ $show_client_registration    = $is_client_screen && ! $state['usable'] && '' !==
 $crb_install_manual_url      = function_exists( 'crb_install_manual_page_url' ) ? crb_install_manual_page_url() : '';
 $crb_feed_pack_manual_url     = function_exists( 'crb_feed_pack_manual_page_url' ) ? crb_feed_pack_manual_page_url() : '';
 $feed_limit_label = '—';
-if ( $state['usable'] && function_exists( 'crb_license_feed_limit_for_plan' ) ) {
+$site_limit_label = '—';
+if ( $state['usable'] && function_exists( 'crb_license_format_feed_limit_label' ) ) {
+	$feed_limit_label = crb_license_format_feed_limit_label( $state['plan'] );
+} elseif ( $state['usable'] && function_exists( 'crb_license_feed_limit_for_plan' ) ) {
 	$feed_limit_label = (string) crb_license_feed_limit_for_plan( $state['plan'] );
+}
+if ( $state['usable'] && function_exists( 'crb_license_site_limit_for_plan' ) ) {
+	$site_limit_label = (string) crb_license_site_limit_for_plan( $state['plan'] );
 }
 $version_info         = function_exists( 'crb_get_plugin_version_info' ) ? crb_get_plugin_version_info() : array( 'version' => '', 'build' => '' );
 $version_line         = '';
@@ -244,6 +250,10 @@ if ( ! empty( $version_info['version'] ) ) {
 				<th><?php esc_html_e( 'フィード数上限', 'custom-rss-builder' ); ?></th>
 				<td><?php echo esc_html( $feed_limit_label ); ?></td>
 			</tr>
+			<tr>
+				<th><?php esc_html_e( 'ライセンスで使えるサイト数', 'custom-rss-builder' ); ?></th>
+				<td><?php echo esc_html( $site_limit_label ); ?></td>
+			</tr>
 			<?php if ( '' !== $state['license_key'] ) : ?>
 			<tr>
 				<th><?php esc_html_e( 'ライセンスキー', 'custom-rss-builder' ); ?></th>
@@ -297,7 +307,7 @@ if ( ! empty( $version_info['version'] ) ) {
 				<?php endforeach; ?>
 			</tbody>
 		</table>
-		<p class="description"><?php esc_html_e( '無料・スタンダード・Pro の主な違いは「フィード数」「スロット数」「自動取り込み間隔」「クレジット表示」「AI テキスト変換」「取り込みタグ（Pro）」です。', 'custom-rss-builder' ); ?></p>
+		<p class="description"><?php esc_html_e( '無料・スタンダード・Pro の主な違いは「WordPress サイト数」「フィード数」「スロット数」「自動取り込み間隔」「クレジット表示」「AI テキスト変換」「取り込みタグ（Pro）」です。', 'custom-rss-builder' ); ?></p>
 	</div>
 	<?php endif; ?>
 

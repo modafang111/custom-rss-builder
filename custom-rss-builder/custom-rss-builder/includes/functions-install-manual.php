@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CRB_INSTALL_MANUAL_VERSION', '2' );
+define( 'CRB_INSTALL_MANUAL_VERSION', '5' );
 define( 'CRB_INSTALL_MANUAL_OPTION_PAGE_ID', 'crb_install_manual_page_id' );
 
 /**
@@ -100,6 +100,7 @@ function crb_install_manual_build_page_content() {
 	$lines[] = '<li><a href="#crb-install-upload">' . esc_html__( '手順 1：ZIP のアップロード', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-install-activate">' . esc_html__( '手順 2：プラグインの有効化', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-install-license">' . esc_html__( '手順 3：ライセンスキーの有効化', 'custom-rss-builder' ) . '</a></li>';
+	$lines[] = '<li><a href="#crb-install-plans">' . esc_html__( 'プランの違い（参考）', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-install-first-feed">' . esc_html__( '手順 4：最初のフィードを作成', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-install-next">' . esc_html__( '次のステップ', 'custom-rss-builder' ) . '</a></li>';
 	$lines[] = '<li><a href="#crb-install-faq">' . esc_html__( 'よくある質問', 'custom-rss-builder' ) . '</a></li>';
@@ -146,7 +147,8 @@ function crb_install_manual_build_page_content() {
 	$lines[] = '<h3>' . esc_html__( '3-1. キーの入手', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<ul>';
 	$lines[] = '<li><strong>' . esc_html__( '無料プラン', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '販売元サイトの無料登録フォームからキーを取得（メール送信あり）', 'custom-rss-builder' ) . '</li>';
-	$lines[] = '<li><strong>' . esc_html__( 'Pro プラン', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '決済完了後、メールで Pro キーを受け取る', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li><strong>' . esc_html__( 'スタンダードプラン', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '月額サブスクリプション。決済完了後、メールでキーを受け取る', 'custom-rss-builder' ) . '</li>';
+	$lines[] = '<li><strong>' . esc_html__( 'Pro プラン', 'custom-rss-builder' ) . '</strong> — ' . esc_html__( '決済完了後、メールで Pro キーを受け取る（同一キーで最大 10 台の WordPress まで有効化可）', 'custom-rss-builder' ) . '</li>';
 	$lines[] = '</ul>';
 	$lines[] = '<h3>' . esc_html__( '3-2. WordPress で有効化', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<ol>';
@@ -155,7 +157,32 @@ function crb_install_manual_build_page_content() {
 	$lines[] = '<li>' . esc_html__( '「有効化」を押す', 'custom-rss-builder' ) . '</li>';
 	$lines[] = '<li>' . esc_html__( '「現在の状態」でプランと「このサイトで利用可：はい」を確認', 'custom-rss-builder' ) . '</li>';
 	$lines[] = '</ol>';
+	$lines[] = '<p class="crb-ai-manual-note">' . esc_html__( '無料・スタンダードのキーは 1 台の WordPress のみで使えます。Pro は同じキーを別サイトのライセンス画面でも入力できます（最大 10 台）。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<p class="crb-ai-manual-note">' . esc_html__( '認証サーバー URL はプラグインに組み込まれています。通常は「初期設定」での追加入力は不要です。', 'custom-rss-builder' ) . '</p>';
+
+	$lines[] = '<h2 id="crb-install-plans">' . esc_html__( 'プランの違い（参考）', 'custom-rss-builder' ) . '</h2>';
+	$lines[] = '<p>' . esc_html__( '「フィード数」は 1 つの WordPress サイト内で作れる RSS 設定の本数です。「WordPress サイト数」は、同じライセンスキーを有効化できるサイトの台数です。', 'custom-rss-builder' ) . '</p>';
+	if ( function_exists( 'crb_license_plan_comparison_rows' ) ) {
+		$plan_rows = crb_license_plan_comparison_rows();
+		if ( ! empty( $plan_rows ) ) {
+			$lines[] = '<table class="widefat crb-manual-plan-table"><thead><tr>';
+			$lines[] = '<th>' . esc_html__( '項目', 'custom-rss-builder' ) . '</th>';
+			$lines[] = '<th>' . esc_html__( '無料', 'custom-rss-builder' ) . '</th>';
+			$lines[] = '<th>' . esc_html__( 'スタンダード', 'custom-rss-builder' ) . '</th>';
+			$lines[] = '<th>' . esc_html__( 'Pro', 'custom-rss-builder' ) . '</th>';
+			$lines[] = '</tr></thead><tbody>';
+			foreach ( $plan_rows as $row ) {
+				$lines[] = sprintf(
+					'<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>',
+					esc_html( $row['label'] ?? '' ),
+					esc_html( $row['free'] ?? '—' ),
+					esc_html( $row['standard'] ?? '—' ),
+					esc_html( $row['pro'] ?? '—' )
+				);
+			}
+			$lines[] = '</tbody></table>';
+		}
+	}
 
 	$lines[] = '<h2 id="crb-install-first-feed">' . esc_html__( '手順 4：最初のフィードを作成', 'custom-rss-builder' ) . '</h2>';
 	$lines[] = '<ol>';
@@ -213,10 +240,14 @@ function crb_install_manual_build_page_content() {
 	$lines[] = '<h2 id="crb-install-faq">' . esc_html__( 'よくある質問', 'custom-rss-builder' ) . '</h2>';
 	$lines[] = '<h3>' . esc_html__( 'Q. サーバーに追加設定は必要ですか？', 'custom-rss-builder' ) . '</h3>';
 	$lines[] = '<p>' . esc_html__( 'A. いいえ。ZIP をインストールして有効化し、ライセンスキーを入力するだけで利用できます。', 'custom-rss-builder' ) . '</p>';
-	$lines[] = '<h3>' . esc_html__( 'Q. 無料プランでできることは？', 'custom-rss-builder' ) . '</h3>';
-	$lines[] = '<p>' . esc_html__( 'A. 無料プランではフィード 1 件、スロット {%1%}〜{%3%} まで利用できます。Pro プランではフィード無制限・スロット {%1%}〜{%20%}・AI テキスト変換が利用できます。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h3>' . esc_html__( 'Q. 各プランでできることは？', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p>' . esc_html__( 'A. 無料は WordPress 1 台・フィード 1 件・スロット {%1%}〜{%3%}。スタンダードは 1 台・フィード 3 件・スロット {%1%}〜{%5%}・自動取り込み 1 時間〜・クレジット非表示。Pro は 10 台まで・各サイトでフィード 10 件・スロット {%1%}〜{%20%}・AI テキスト変換・取り込みタグが利用できます。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h3>' . esc_html__( 'Q. スタンダードと Pro の違いは？', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p>' . esc_html__( 'A. スタンダードは 1 台の WordPress でフィード 3 件まで。Pro は同一キーで最大 10 台まで有効化でき、各サイトでフィード 10 件・AI 変換・取り込みタグが使えます。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<h3>' . esc_html__( 'Q. 1 つの Pro キーを複数サイトで使えますか？', 'custom-rss-builder' ) . '</h3>';
+	$lines[] = '<p>' . esc_html__( 'A. はい。Pro ライセンスは最大 10 台の WordPress サイトで有効化できます。各サイトの「ライセンス」画面で同じキーを入力してください。無料・スタンダードは 1 台のみです。', 'custom-rss-builder' ) . '</p>';
 	$lines[] = '<h3>' . esc_html__( 'Q. キーを有効化できない', 'custom-rss-builder' ) . '</h3>';
-	$lines[] = '<p>' . esc_html__( 'A. キーのコピーミス、別サイトでの有効化済み、無効化されたキーなどが考えられます。販売元にお問い合わせください。', 'custom-rss-builder' ) . '</p>';
+	$lines[] = '<p>' . esc_html__( 'A. キーのコピーミス、別サイトでの有効化済み（無料・スタンダードは 1 台のみ）、Pro の 10 台上限超過、無効化されたキーなどが考えられます。販売元にお問い合わせください。', 'custom-rss-builder' ) . '</p>';
 
 	$lines[] = '<hr />';
 	$lines[] = '<p class="crb-ai-manual-footer"><small>' . esc_html__( '本ページは Custom RSS Builder プラグインにより自動更新されます。', 'custom-rss-builder' ) . '</small></p>';

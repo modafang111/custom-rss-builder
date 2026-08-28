@@ -24,7 +24,21 @@ REMOTE_CANDIDATES = (
 )
 
 
-def load_password() -> str:
+def load_credentials() -> tuple[str, str, str, int]:
+    import json
+
+    local_cfg = BASE / "deploy.local.json"
+    if local_cfg.is_file():
+        data = json.loads(local_cfg.read_text(encoding="utf-8-sig"))
+        return (
+            str(data.get("host") or FTP_HOST),
+            str(data.get("user") or FTP_USER),
+            str(data["password"]),
+            int(data.get("port", 21)),
+        )
+
+    if not FZ_PATH.is_file():
+        raise RuntimeError("FTP credentials not found: deploy.local.json or FileZilla sitemanager.xml")
     tree = ET.parse(FZ_PATH)
     for srv in tree.getroot().iter("Server"):
         if (srv.findtext("Host") or "").strip() == FTP_HOST and (
@@ -32,7 +46,12 @@ def load_password() -> str:
         ).strip() == FTP_USER:
             enc = srv.find("Pass")
             if enc is not None and enc.text:
-                return base64.b64decode(enc.text.strip()).decode("utf-8", errors="replace")
+                return (
+                    FTP_HOST,
+                    FTP_USER,
+                    base64.b64decode(enc.text.strip()).decode("utf-8", errors="replace"),
+                    21,
+                )
     raise RuntimeError("FTP credentials not found")
 
 
@@ -73,8 +92,8 @@ def main() -> int:
     print(f"Local size: {len(local)} bytes")
     print(f"Local BUILD_ID: {local_build}")
 
-    pw = load_password()
-    ftp = ftplib.FTP(FTP_HOST, FTP_USER, pw, timeout=180)
+    host, user, pw, port = load_credentials()
+    ftp = ftplib.FTP(host, user, pw, timeout=180)
     ftp.set_pasv(True)
 
     remote_paths: list[str] = []

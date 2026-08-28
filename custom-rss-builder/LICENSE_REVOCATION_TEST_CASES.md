@@ -17,12 +17,13 @@
 
 | ID | 操作 | 期待結果 | 確認方法 |
 |----|------|----------|----------|
-| SRV-01 | ライセンス一覧で対象 Pro キーの **サイト URL** を確認 | クライアントの正規化 URL と一致（例: `https://wordpress-123.com/PluginTest`） | 一覧の「サイト」列 |
+| SRV-01 | ライセンス一覧で対象 Pro キーの **有効化サイト** を確認 | クライアントの正規化 URL が一覧に含まれる（Pro は最大 10 サイトまで複数行表示） | 一覧の「サイト」列 |
 | SRV-02 | 対象行の **無効化** をクリックし確認 | ステータスが **expired**（または cancelled） | 一覧のステータス列 |
 | SRV-03 | 無効化直後、同じキーで **有効化** リンクが出る／再発行が必要な状態 | active に戻らない | 一覧 UI |
 | SRV-04 | （任意）DB／管理画面で `status` フィールド | `expired` 等、`active` ではない | 正本のみ管理者 |
 | SRV-05 | REST `check` を Secret 付きで手動 POST（下記 curl 相当） | HTTP **403**、JSON `code` = **`crb_ls_inactive`**、`message` に「無効」 | `tools/probe_client_license_rest.py` または Postman |
-| SRV-06 | 別サイト URL で `check` | `crb_ls_site_mismatch`（409） | site_url を故意にずらす |
+| SRV-06 | 未登録の別サイト URL で `check`（無料・スタンダード） | `crb_ls_site_mismatch`（409） | site_url を故意にずらす |
+| SRV-06b | 未登録の別サイト URL で `activate`（Pro・10 台未満） | **成功**（サイトが追加登録される） | Pro マルチサイト |
 | SRV-07 | Secret なしで `check` | `crb_ls_bad_secret` または Secret 案内（**inactive ではない**） | Secret ヘッダ省略 |
 | SRV-08 | 無効化後に **有効** に戻す（テスト後片付け） | `status=active`、クライアントで再確認で Pro 復帰 | 手動または SRV-09 用 |
 
